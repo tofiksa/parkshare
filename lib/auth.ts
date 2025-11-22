@@ -35,6 +35,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Check if email is verified (only in production, allow unverified in development)
+        if (process.env.NODE_ENV === "production" && !user.emailVerified) {
+          throw new Error("E-postadressen din er ikke verifisert. Sjekk din e-post for verifiseringslink.")
+        }
+
         return {
           id: user.id,
           email: user.email,

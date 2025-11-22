@@ -13,6 +13,9 @@ const createBookingSchema = z.object({
   parkingSpotId: z.string(),
   startTime: z.string().datetime(),
   endTime: z.string().datetime(),
+  termsAccepted: z.boolean().refine((val) => val === true, {
+    message: "Du må godkjenne avtalevilkårene",
+  }),
 })
 
 export async function POST(request: Request) {
@@ -116,7 +119,15 @@ export async function POST(request: Request) {
       qrCode = generateQRCodeString(validatedData.parkingSpotId)
     }
 
-    // Opprett booking
+    // Valider at avtalevilkår er godkjent
+    if (!validatedData.termsAccepted) {
+      return NextResponse.json(
+        { error: "Du må godkjenne avtalevilkårene" },
+        { status: 400 }
+      )
+    }
+
+    // Opprett booking med terms acceptance
     const booking = await prisma.booking.create({
       data: {
         parkingSpotId: validatedData.parkingSpotId,
@@ -126,6 +137,13 @@ export async function POST(request: Request) {
         totalPrice,
         status: "PENDING",
         qrCode,
+        termsAcceptance: {
+          create: {
+            userId: session.user.id,
+            accepted: true,
+            acceptedAt: new Date(),
+          },
+        },
       },
       include: {
         parkingSpot: {

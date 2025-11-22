@@ -36,6 +36,8 @@ model User {
   phone         String?
   userType      UserType
   emailVerified DateTime?
+  verificationToken    String?   @unique
+  verificationTokenExpires DateTime?
   resetToken    String?   @unique
   resetTokenExpires DateTime?
   createdAt     DateTime  @default(now())

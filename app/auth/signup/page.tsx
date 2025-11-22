@@ -65,7 +65,7 @@ export default function SignUpPage() {
         return
       }
 
-      // Redirect to sign in page
+      // Redirect to sign in page with message about verification
       router.push("/auth/signin?registered=true")
     } catch (err) {
       console.error("Signup error:", err)

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import crypto from "crypto"
+import { sendEmail } from "@/lib/email"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Navn må være minst 2 tegn"),
@@ -31,6 +33,11 @@ export async function POST(request: Request) {
     // Hash password
     const hashedPassword = await bcrypt.hash(validatedData.password, 10)
 
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString("hex")
+    const verificationTokenExpires = new Date()
+    verificationTokenExpires.setHours(verificationTokenExpires.getHours() + 24) // 24 timer
+
     // Create user
     const user = await prisma.user.create({
       data: {
@@ -39,6 +46,8 @@ export async function POST(request: Request) {
         password: hashedPassword,
         phone: validatedData.phone,
         userType: validatedData.userType,
+        verificationToken,
+        verificationTokenExpires,
       },
       select: {
         id: true,
@@ -48,11 +57,52 @@ export async function POST(request: Request) {
       },
     })
 
-    // TODO: Send verification email
-    // For now, we'll skip email verification in development
+    // Send verification email
+    const verificationUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/auth/verify-email?token=${verificationToken}`
+    
+    await sendEmail({
+      to: validatedData.email,
+      subject: "Verifiser din e-postadresse - Parkshare",
+      html: `
+        <h2>Velkommen til Parkshare!</h2>
+        <p>Hei ${validatedData.name},</p>
+        <p>Takk for at du registrerte deg på Parkshare. For å aktivere kontoen din, må du verifisere din e-postadresse.</p>
+        <p>
+          <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 8px; margin: 16px 0;">
+            Verifiser e-postadresse
+          </a>
+        </p>
+        <p>Eller kopier og lim inn denne lenken i nettleseren:</p>
+        <p style="word-break: break-all; color: #666;">${verificationUrl}</p>
+        <p>Denne lenken er gyldig i 24 timer.</p>
+        <p>Hvis du ikke opprettet denne kontoen, kan du ignorere denne e-posten.</p>
+        <p>Med vennlig hilsen,<br>Parkshare-teamet</p>
+      `,
+      text: `
+Velkommen til Parkshare!
+
+Hei ${validatedData.name},
+
+Takk for at du registrerte deg på Parkshare. For å aktivere kontoen din, må du verifisere din e-postadresse.
+
+Klikk på denne lenken for å verifisere:
+${verificationUrl}
+
+Denne lenken er gyldig i 24 timer.
+
+Hvis du ikke opprettet denne kontoen, kan du ignorere denne e-posten.
+
+Med vennlig hilsen,
+Parkshare-teamet
+      `.trim(),
+    })
 
     return NextResponse.json(
-      { message: "Bruker opprettet. Du kan nå logge inn.", user },
+      { 
+        message: "Bruker opprettet. Sjekk din e-post for å verifisere kontoen din.", 
+        user,
+        requiresVerification: true,
+      },
       { status: 201 }
     )
   } catch (error) {

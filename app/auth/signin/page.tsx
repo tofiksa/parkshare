@@ -17,7 +17,10 @@ function SignInPageContent() {
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
-      setSuccess("Konto opprettet! Du kan nå logge inn.")
+      setSuccess("Konto opprettet! Sjekk din e-post for å verifisere kontoen din før du logger inn.")
+    }
+    if (searchParams.get("verified") === "true") {
+      setSuccess("E-postadressen din er nå verifisert! Du kan nå logge inn.")
     }
     if (searchParams.get("passwordReset") === "true") {
       setSuccess("Passordet ditt har blitt nullstilt! Du kan nå logge inn med ditt nye passord.")
@@ -37,7 +40,12 @@ function SignInPageContent() {
       })
 
       if (result?.error) {
-        setError("Ugyldig e-post eller passord")
+        // Check if error is about email verification
+        if (result.error.includes("verifisert")) {
+          setError(result.error)
+        } else {
+          setError("Ugyldig e-post eller passord")
+        }
       } else {
         router.push("/dashboard")
         router.refresh()

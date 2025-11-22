@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import PaymentForm from "@/components/PaymentForm"
+import { TERMS_VERSION, TERMS_LAST_UPDATED, getTermsSummary } from "@/lib/terms"
 
 interface ParkingSpot {
   id: string
@@ -75,6 +76,7 @@ function NewBookingPageContent() {
           parkingSpotId: spotId,
           startTime,
           endTime,
+          termsAccepted,
         }),
       })
 
@@ -198,38 +200,22 @@ function NewBookingPageContent() {
 
             <div className="border-t pt-6">
               <h2 className="text-xl font-semibold mb-4">Avtalevilkår</h2>
-              <div className="bg-gray-50 p-4 rounded-lg mb-4 max-h-64 overflow-y-auto">
-                <p className="text-sm text-gray-700 mb-2">
-                  <strong>1. Booking og betaling</strong>
-                </p>
-                <p className="text-sm text-gray-700 mb-4">
-                  Ved booking av parkeringsplass godtar du å betale den oppgitte prisen for valgt periode.
-                  Betalingen behandles automatisk ved bookingbekreftelse.
-                </p>
-
-                <p className="text-sm text-gray-700 mb-2">
-                  <strong>2. Avbestilling</strong>
-                </p>
-                <p className="text-sm text-gray-700 mb-4">
-                  Du kan avbestille booking innen 30 minutter før oppstart av leieforholdet.
-                  Ved avbestilling vil du få full refundering.
-                </p>
-
-                <p className="text-sm text-gray-700 mb-2">
-                  <strong>3. Bruk av parkeringsplass</strong>
-                </p>
-                <p className="text-sm text-gray-700 mb-4">
-                  Du er ansvarlig for å bruke parkeringsplassen kun i den bookede perioden.
-                  For innendørs plasser må du bruke den tildelte QR-koden for tilgang.
-                </p>
-
-                <p className="text-sm text-gray-700 mb-2">
-                  <strong>4. Ansvar</strong>
-                </p>
-                <p className="text-sm text-gray-700">
-                  Utleier er ikke ansvarlig for skade på kjøretøy eller tyveri.
-                  Du parkerer på eget ansvar.
-                </p>
+              <div className="bg-gray-50 p-4 rounded-lg mb-4 max-h-64 overflow-y-auto border border-gray-200">
+                <div className="text-xs text-gray-500 mb-3">
+                  Versjon {TERMS_VERSION} - Sist oppdatert: {TERMS_LAST_UPDATED}
+                </div>
+                <div className="text-sm text-gray-700 whitespace-pre-line">
+                  {getTermsSummary()}
+                </div>
+                <div className="mt-4 pt-4 border-t border-gray-300">
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
+                    Les fullstendige avtalevilkår →
+                  </Link>
+                </div>
               </div>
 
               <div className="flex items-start">
