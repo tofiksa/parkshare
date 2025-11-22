@@ -66,26 +66,29 @@
 ## ⚠️ Delvis implementert / Trenger forbedring
 
 ### Avtalevilkår (FR-036, FR-037, FR-038)
-- ⚠️ **Status**: Delvis implementert
+- ✅ **Status**: Fullstendig implementert
 - ✅ Checkbox for godkjenning i booking-flyten
 - ✅ TermsAcceptance-modell i database
-- ❌ **Mangler**: 
-  - Faktisk avtalevilkår-dokument (juridisk tekst)
-  - Lagring av godkjenning i database ved booking
-  - Visning av avtalevilkår-dokument i UI
+- ✅ Lagring av godkjenning i database ved booking
+- ✅ Faktisk avtalevilkår-dokument (juridisk tekst i lib/terms.ts)
+- ✅ Visning av avtalevilkår-dokument i UI (/terms)
+- ✅ Terms summary vises i booking-flyten med link til fullstendige vilkår
 
 ### Bildeopplasting
-- ⚠️ **Status**: Kun URL-basert nå
-- ❌ **Mangler**: 
-  - Faktisk filopplasting (muligens til cloud storage som S3/Cloudinary)
-  - Bildevalidering og komprimering
+- ✅ **Status**: Implementert (MVP med base64)
+- ✅ Faktisk filopplasting med drag-and-drop
+- ✅ Bildevalidering (type og størrelse)
+- ✅ Forhåndsvisning før opplasting
+- ✅ Støtte for både filopplasting og URL-input
+- ⚠️ **Forbedring**: Bør oppgraderes til cloud storage (Cloudinary/S3) for produksjon
 
 ### E-postverifisering ved registrering (FR-002)
-- ⚠️ **Status**: Ikke implementert
-- ❌ **Mangler**: 
-  - E-postverifisering ved registrering
-  - Verifiseringslink
-  - Konto-aktivering
+- ✅ **Status**: Fullstendig implementert
+- ✅ E-postverifisering ved registrering
+- ✅ Verifiseringslink med 24-timers utløp
+- ✅ Konto-aktivering via /auth/verify-email
+- ✅ NextAuth krever verifisert e-post i produksjon
+- ✅ Brukervennlige meldinger om verifisering
 
 ### Push-varsler
 - ⚠️ **Status**: Kun e-post implementert
@@ -190,5 +193,26 @@
 - **Tilgjengelighet**: ~40% ⚠️
 - **Produksjonsklarhet**: ~60% ⚠️
 
-**Total MVP-ferdigstillelse: ~75%**
+**Total MVP-ferdigstillelse: ~85%**
+
+## Nylige implementasjoner (2024)
+
+### ✅ Avtalevilkår-system
+- Implementert fullstendig avtalevilkår-lagring
+- Opprettet juridisk korrekt avtalevilkår-dokument
+- Lagring av godkjenninger i database med timestamp
+- Terms-side for visning av fullstendige vilkår
+
+### ✅ E-postverifisering
+- Implementert e-postverifisering ved registrering
+- Verifiseringslink med 24-timers utløp
+- Verifiseringsside med suksess/feil-håndtering
+- NextAuth oppdatert til å kreve verifisering i produksjon
+
+### ✅ Bildeopplasting
+- Implementert filopplasting med drag-and-drop
+- Bildevalidering (type og størrelse)
+- Forhåndsvisning før opplasting
+- Støtte for både filopplasting og URL-input
+- Base64 encoding for MVP (kan oppgraderes til cloud storage)
 
