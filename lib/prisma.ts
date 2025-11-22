@@ -10,5 +10,8 @@ export const prisma =
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+// Prisma Client singleton pattern - reuse same instance across hot reloads
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+}
 

@@ -83,7 +83,15 @@ Se `.env.example` for nødvendige miljøvariabler.
   - Format: `noreply@yourdomain.com` eller bruk `onboarding@resend.dev` for testing
 - **CRON_SECRET**: Hemmelig nøkkel for å beskytte cron job routes
   - Generer med: `openssl rand -base64 32`
-- **STRIPE_***: For betalingsintegrasjon (ikke implementert ennå)
+- **STRIPE_SECRET_KEY**: Stripe secret key for betalingsintegrasjon
+  - Hent fra: https://dashboard.stripe.com/apikeys
+  - Bruk test-nøkler (`sk_test_...`) for utvikling
+- **NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY**: Stripe publishable key (må starte med `NEXT_PUBLIC_`)
+  - Hent fra: https://dashboard.stripe.com/apikeys
+  - Bruk test-nøkler (`pk_test_...`) for utvikling
+- **STRIPE_WEBHOOK_SECRET**: Webhook secret for å verifisere Stripe webhooks
+  - Hent fra: Stripe Dashboard → Developers → Webhooks
+  - Se Stripe-setup seksjonen nedenfor for detaljer
 - **MAPBOX_ACCESS_TOKEN**: For forbedret kartvisning (valgfritt)
 
 ### Database Setup (Supabase)
@@ -143,4 +151,70 @@ Se `.env.example` for nødvendige miljøvariabler.
        }]
      }
      ```
+
+### Stripe Betalingsintegrasjon
+
+Parkshare bruker Stripe for å håndtere betalinger. Følg disse stegene for å sette opp Stripe:
+
+1. **Opprett Stripe-konto:**
+   - Gå til https://stripe.com og opprett en konto
+   - Verifiser e-postadresse og legg til grunnleggende informasjon
+
+2. **Hent API-nøkler:**
+   - Gå til Stripe Dashboard: https://dashboard.stripe.com
+   - Gå til **Developers** → **API keys**
+   - Du vil se to nøkler:
+     - **Publishable key** (`pk_test_...` eller `pk_live_...`)
+     - **Secret key** (`sk_test_...` eller `sk_live_...`)
+   - **For utvikling**: Bruk test-nøkler (starter med `test_`)
+   - **For produksjon**: Bruk live-nøkler (starter med `live_`)
+
+3. **Konfigurer miljøvariabler:**
+   ```bash
+   STRIPE_SECRET_KEY="sk_test_xxxxxxxxxxxxx"
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_xxxxxxxxxxxxx"
+   ```
+
+4. **Sett opp Webhooks (for produksjon):**
+   
+   Webhooks lar Stripe varsle applikasjonen din når betalinger er fullført eller feiler.
+   
+   **For lokal utvikling:**
+   - Bruk Stripe CLI for å videresende webhooks til lokal server:
+     ```bash
+     stripe listen --forward-to localhost:3000/api/webhooks/stripe
+     ```
+   - Stripe CLI vil gi deg en webhook secret som starter med `whsec_`
+   - Sett denne i `.env.local`:
+     ```bash
+     STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxx"
+     ```
+   
+   **For produksjon:**
+   - Gå til Stripe Dashboard → **Developers** → **Webhooks**
+   - Klikk **Add endpoint**
+   - Endpoint URL: `https://yourdomain.com/api/webhooks/stripe`
+   - Velg events:
+     - `payment_intent.succeeded`
+     - `payment_intent.payment_failed`
+   - Kopier **Signing secret** (starter med `whsec_`)
+   - Sett denne i produksjonsmiljøvariabler:
+     ```bash
+     STRIPE_WEBHOOK_SECRET="whsec_xxxxxxxxxxxxx"
+     ```
+
+5. **Test betalinger:**
+   - Stripe tilbyr test-kortnummer for testing
+   - Se: https://stripe.com/docs/testing
+   - Eksempel test-kort: `4242 4242 4242 4242`
+   - Bruk hvilket som helst fremtidig utløpsdato og CVC
+
+6. **Refundering ved avbestilling:**
+   - Refundering håndteres automatisk når en booking avbestilles
+   - Refundering skjer kun hvis booking er betalt og mer enn 30 minutter før oppstart
+
+**Viktig:** 
+- Applikasjonen vil fungere uten Stripe-konfigurasjon, men betalinger vil ikke fungere
+- For produksjon må du bruke live-nøkler og konfigurere webhooks
+- Test alltid betalingsflyten grundig før produksjon
 

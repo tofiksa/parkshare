@@ -4,7 +4,7 @@ import Stripe from "stripe"
 // Dette er OK for utvikling - betaling vil ikke fungere, men appen vil fortsatt kjøre
 export const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2025-11-17.clover",
+      apiVersion: "2025-11-17.clover" as const,
       typescript: true,
     })
   : null
