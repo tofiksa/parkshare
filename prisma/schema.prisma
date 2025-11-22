@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,6 +5,117 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String            @id @default(cuid())
+  email                   String            @unique
+  password                String
+  name                    String
+  phone                   String?
+  userType                UserType
+  emailVerified           DateTime?
+  verificationToken       String?           @unique
+  verificationTokenExpires DateTime?
+  resetToken              String?           @unique
+  resetTokenExpires       DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  bookings                Booking[]
+  receivedMessages        Message[]         @relation("MessageReceiver")
+  sentMessages            Message[]         @relation("MessageSender")
+  parkingSpots            ParkingSpot[]
+  termsAcceptances        TermsAcceptance[]
+
+  @@map("users")
+}
+
+model ParkingSpot {
+  id           String      @id @default(cuid())
+  userId       String
+  type         ParkingType
+  address      String
+  latitude     Float?
+  longitude    Float?
+  imageUrl     String?
+  qrCode       String?     @unique
+  pricePerHour Float
+  description  String?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  bookings     Booking[]
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("parking_spots")
+}
+
+model Booking {
+  id              String           @id @default(cuid())
+  parkingSpotId   String
+  userId          String
+  startTime       DateTime
+  endTime         DateTime
+  totalPrice      Float
+  status          BookingStatus    @default(PENDING)
+  qrCode          String?          @unique
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  cancelledAt     DateTime?
+  parkingSpot     ParkingSpot      @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        Message[]
+  termsAcceptance TermsAcceptance?
+
+  @@index([parkingSpotId])
+  @@index([userId])
+  @@index([startTime, endTime])
+  @@map("bookings")
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  bookingId  String
+  senderId   String
+  receiverId String
+  content    String
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  sender     User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([senderId, receiverId])
+  @@map("messages")
+}
+
+model TermsAcceptance {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  userId     String
+  accepted   Boolean  @default(true)
+  acceptedAt DateTime @default(now())
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("terms_acceptances")
+}
+
+model Payment {
+  id              String    @id @default(cuid())
+  bookingId       String    @unique
+  amount          Float
+  currency        String    @default("NOK")
+  stripePaymentId String?   @unique
+  status          String
+  refundedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([bookingId])
+  @@map("payments")
 }
 
 enum UserType {
@@ -27,125 +135,3 @@ enum BookingStatus {
   COMPLETED
   CANCELLED
 }
-
-model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  password      String
-  name          String
-  phone         String?
-  userType      UserType
-  emailVerified DateTime?
-  verificationToken    String?   @unique
-  verificationTokenExpires DateTime?
-  resetToken    String?   @unique
-  resetTokenExpires DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  parkingSpots  ParkingSpot[]
-  bookings      Booking[]
-  sentMessages  Message[]  @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
-  termsAcceptances TermsAcceptance[]
-
-  @@map("users")
-}
-
-model ParkingSpot {
-  id          String       @id @default(cuid())
-  userId      String
-  type        ParkingType
-  address     String
-  latitude    Float?
-  longitude   Float?
-  imageUrl    String?
-  qrCode      String?      @unique
-  pricePerHour Float
-  description String?
-  isActive    Boolean      @default(true)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  // Relations
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bookings    Booking[]
-
-  @@map("parking_spots")
-}
-
-model Booking {
-  id            String        @id @default(cuid())
-  parkingSpotId String
-  userId        String
-  startTime     DateTime
-  endTime       DateTime
-  totalPrice    Float
-  status        BookingStatus @default(PENDING)
-  qrCode        String?       @unique
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  cancelledAt   DateTime?
-
-  // Relations
-  parkingSpot   ParkingSpot   @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages      Message[]
-  termsAcceptance TermsAcceptance?
-
-  @@index([parkingSpotId])
-  @@index([userId])
-  @@index([startTime, endTime])
-  @@map("bookings")
-}
-
-model Message {
-  id        String   @id @default(cuid())
-  bookingId String
-  senderId  String
-  receiverId String
-  content   String
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  // Relations
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  sender    User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver  User     @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@index([bookingId])
-  @@index([senderId, receiverId])
-  @@map("messages")
-}
-
-model TermsAcceptance {
-  id        String   @id @default(cuid())
-  bookingId String   @unique
-  userId    String
-  accepted  Boolean  @default(true)
-  acceptedAt DateTime @default(now())
-
-  // Relations
-  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-  @@map("terms_acceptances")
-}
-
-model Payment {
-  id            String   @id @default(cuid())
-  bookingId     String   @unique
-  amount        Float
-  currency      String   @default("NOK")
-  stripePaymentId String? @unique
-  status        String   // PENDING, COMPLETED, REFUNDED
-  refundedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([bookingId])
-  @@map("payments")
-}
-
