@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -43,8 +43,20 @@ export default function SearchPage() {
     maxDistance: "5",
   })
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const hasSearchedRef = useRef(false)
 
   const searchParkingSpots = useCallback(async () => {
+    // Kanseller pågående request hvis det finnes
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+
+    // Opprett ny abort controller
+    const abortController = new AbortController()
+    abortControllerRef.current = abortController
+
     setLoading(true)
     setError("")
 
@@ -76,7 +88,9 @@ export default function SearchPage() {
         params.append("maxDistance", filters.maxDistance)
       }
 
-      const response = await fetch(`/api/parking-spots/search?${params.toString()}`)
+      const response = await fetch(`/api/parking-spots/search?${params.toString()}`, {
+        signal: abortController.signal,
+      })
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Ukjent feil" }))
@@ -84,15 +98,28 @@ export default function SearchPage() {
       }
 
       const data = await response.json()
-      setParkingSpots(data)
+      
+      // Bare oppdater hvis request ikke er kansellert
+      if (!abortController.signal.aborted) {
+        setParkingSpots(data)
+        hasSearchedRef.current = true
+      }
     } catch (err) {
+      // Ignorer abort errors
+      if (err instanceof Error && err.name === "AbortError") {
+        return
+      }
+      
       const errorMessage = err instanceof Error ? err.message : "Kunne ikke laste parkeringsplasser"
       setError(errorMessage)
       if (process.env.NODE_ENV === "development") {
         console.error("Error searching parking spots:", err)
       }
     } finally {
-      setLoading(false)
+      // Bare oppdater loading state hvis request ikke er kansellert
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
     }
   }, [userLocation, filters])
 
@@ -108,26 +135,60 @@ export default function SearchPage() {
         (error) => {
           // Silently handle location errors - not critical for functionality
           // User can still search without location
+        },
+        {
+          enableHighAccuracy: false, // Bruk ikke høy nøyaktighet for å unngå for mange oppdateringer
+          timeout: 10000,
+          maximumAge: 300000, // Cache lokasjon i 5 minutter
         }
       )
     }
   }, [])
 
+  // Debounced søk når filters eller userLocation endres
+  useEffect(() => {
+    // Rydd opp tidligere timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    // Hvis dette er første søk, søk umiddelbart
+    if (!hasSearchedRef.current) {
+      searchParkingSpots()
+      return
+    }
+
+    // Ellers, debounce søket med 500ms
+    searchTimeoutRef.current = setTimeout(() => {
+      searchParkingSpots()
+    }, 500)
+
+    // Cleanup
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [userLocation, filters, searchParkingSpots])
+
+  // Hent brukerens lokasjon når komponenten mountes
   useEffect(() => {
     if (session && session.user.userType === "LEIETAKER") {
       getCurrentLocation()
-      // Vent litt før første søk for å gi geolocation tid til å laste
-      // Søk uten lokasjon først, så søk igjen når lokasjon er klar
-      searchParkingSpots()
     }
-  }, [session, searchParkingSpots, getCurrentLocation])
+  }, [session, getCurrentLocation])
 
-  // Søk igjen når brukerens lokasjon er klar
+  // Cleanup ved unmount
   useEffect(() => {
-    if (userLocation && session && session.user.userType === "LEIETAKER") {
-      searchParkingSpots()
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
     }
-  }, [userLocation, session, searchParkingSpots])
+  }, [])
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value })
