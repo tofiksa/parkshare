@@ -38,6 +38,9 @@ export default function ParkingSpotDetailPage() {
 		imageUrl: "",
 	});
 	const [saving, setSaving] = useState(false);
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [imagePreview, setImagePreview] = useState<string | null>(null);
+	const [uploadingImage, setUploadingImage] = useState(false);
 
 	useEffect(() => {
 		if (id) {
@@ -61,6 +64,9 @@ export default function ParkingSpotDetailPage() {
 				isActive: data.isActive,
 				imageUrl: data.imageUrl || "",
 			});
+			if (data.imageUrl) {
+				setImagePreview(data.imageUrl);
+			}
 		} catch (err) {
 			setError("Kunne ikke laste parkeringsplass");
 			console.error(err);
@@ -301,21 +307,163 @@ export default function ParkingSpotDetailPage() {
 									</div>
 
 									<div>
-										<label
-											htmlFor="edit-image"
-											className="block text-sm font-medium text-gray-700"
-										>
-											Bilde-URL
+										<label className="block text-sm font-semibold text-gray-700 mb-2">
+											Bilde
 										</label>
-										<input
-											id="edit-image"
-											type="url"
-											value={editData.imageUrl}
-											onChange={(e) =>
-												setEditData({ ...editData, imageUrl: e.target.value })
-											}
-											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
-										/>
+
+										{imagePreview ? (
+											<div className="mb-4">
+												<img
+													src={imagePreview}
+													alt="Forhåndsvisning"
+													className="w-full h-48 object-cover rounded-lg border border-gray-200"
+												/>
+												<button
+													type="button"
+													onClick={() => {
+														setImagePreview(null);
+														setImageFile(null);
+														setEditData({ ...editData, imageUrl: "" });
+													}}
+													className="mt-2 text-sm text-red-600 hover:text-red-700"
+												>
+													Fjern bilde
+												</button>
+											</div>
+										) : (
+											<div className="mb-4">
+												<label
+													htmlFor="edit-image-upload"
+													className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors"
+												>
+													<div className="flex flex-col items-center justify-center pt-5 pb-6">
+														<svg
+															className="w-8 h-8 mb-2 text-gray-500"
+															fill="none"
+															stroke="currentColor"
+															viewBox="0 0 24 24"
+														>
+															<path
+																strokeLinecap="round"
+																strokeLinejoin="round"
+																strokeWidth={2}
+																d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+															/>
+														</svg>
+														<p className="mb-2 text-sm text-gray-500">
+															<span className="font-semibold">
+																Klikk for å laste opp
+															</span>{" "}
+															eller dra og slipp
+														</p>
+														<p className="text-xs text-gray-500">
+															PNG, JPG, WebP (maks 5MB)
+														</p>
+													</div>
+													<input
+														id="edit-image-upload"
+														name="edit-image-upload"
+														type="file"
+														accept="image/*"
+														onChange={async (e) => {
+															const file = e.target.files?.[0];
+															if (!file) return;
+
+															if (!file.type.startsWith("image/")) {
+																setError("Kun bilder er tillatt");
+																return;
+															}
+
+															if (file.size > 5 * 1024 * 1024) {
+																setError(
+																	"Bildet er for stort. Maksimal størrelse er 5MB.",
+																);
+																return;
+															}
+
+															setImageFile(file);
+															setUploadingImage(true);
+															setError("");
+
+															try {
+																const reader = new FileReader();
+																reader.onloadend = () => {
+																	setImagePreview(reader.result as string);
+																};
+																reader.readAsDataURL(file);
+
+																const uploadFormData = new FormData();
+																uploadFormData.append("file", file);
+
+																const uploadResponse = await fetch(
+																	"/api/upload/image",
+																	{
+																		method: "POST",
+																		body: uploadFormData,
+																	},
+																);
+
+																if (!uploadResponse.ok) {
+																	const uploadError =
+																		await uploadResponse.json();
+																	throw new Error(
+																		uploadError.error ||
+																			"Kunne ikke laste opp bilde",
+																	);
+																}
+
+																const uploadData = await uploadResponse.json();
+																setEditData({
+																	...editData,
+																	imageUrl: uploadData.url,
+																});
+															} catch (err) {
+																setError(
+																	err instanceof Error
+																		? err.message
+																		: "Kunne ikke laste opp bilde",
+																);
+																setImageFile(null);
+																setImagePreview(null);
+															} finally {
+																setUploadingImage(false);
+															}
+														}}
+														disabled={uploadingImage}
+														className="hidden"
+													/>
+												</label>
+												{uploadingImage && (
+													<p className="mt-2 text-sm text-blue-600">
+														Laster opp bilde...
+													</p>
+												)}
+											</div>
+										)}
+
+										<div className="text-sm text-gray-500">
+											<p>Eller legg inn en bilde-URL:</p>
+											<input
+												id="edit-image-url"
+												type="url"
+												value={
+													editData.imageUrl && !imagePreview
+														? editData.imageUrl
+														: ""
+												}
+												onChange={(e) => {
+													if (!imagePreview) {
+														setEditData({
+															...editData,
+															imageUrl: e.target.value,
+														});
+													}
+												}}
+												disabled={!!imagePreview}
+												className="mt-2 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors disabled:bg-gray-100 disabled:cursor-not-allowed"
+												placeholder="https://example.com/image.jpg"
+											/>
+										</div>
 									</div>
 
 									<div className="flex items-center">
