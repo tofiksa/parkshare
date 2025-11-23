@@ -34,7 +34,7 @@ export default function ActiveParkingPage() {
 
   useEffect(() => {
     fetchActiveBooking()
-    const interval = setInterval(fetchActiveBooking, 5000) // Oppdater hvert 5. sekund
+    const interval = setInterval(fetchActiveBooking, 1000) // Oppdater hvert sekund
 
     return () => clearInterval(interval)
   }, [])

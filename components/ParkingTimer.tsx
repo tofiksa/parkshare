@@ -15,16 +15,18 @@ export default function ParkingTimer({ startTime, pricePerMinute }: ParkingTimer
     const updateTimer = () => {
       const now = new Date()
       const diff = now.getTime() - startTime.getTime()
-      const minutes = Math.ceil(diff / (1000 * 60))
+      const totalSeconds = Math.floor(diff / 1000)
+      const minutes = Math.floor(totalSeconds / 60)
       setDuration(minutes)
       
-      // Beregn estimert pris
-      const price = Math.round((pricePerMinute * minutes) * 100) / 100
+      // Beregn estimert pris basert på faktiske sekunder (mer nøyaktig)
+      const exactMinutes = diff / (1000 * 60)
+      const price = Math.round((pricePerMinute * exactMinutes) * 100) / 100
       setEstimatedPrice(price)
     }
 
     updateTimer()
-    const interval = setInterval(updateTimer, 1000)
+    const interval = setInterval(updateTimer, 1000) // Oppdater hvert sekund
 
     return () => clearInterval(interval)
   }, [startTime, pricePerMinute])
