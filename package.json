@@ -12,7 +12,9 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
-    "db:seed": "tsx scripts/seed-test-data.ts"
+    "db:seed": "tsx scripts/seed-test-data.ts",
+    "db:migrate:seed": "tsx scripts/migrate-and-seed.ts",
+    "db:migrate:seed:full": "tsx scripts/migrate-and-seed.ts --migrate"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
