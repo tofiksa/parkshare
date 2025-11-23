@@ -10,9 +10,10 @@ import MessageThread from "@/components/MessageThread"
 interface Booking {
   id: string
   startTime: string
-  endTime: string
-  totalPrice: number
-  status: "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED"
+  endTime: string | null
+  totalPrice: number | null
+  status: "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "STARTED"
+  bookingType?: "ADVANCE" | "ON_DEMAND"
   qrCode: string | null
   parkingSpot: {
     id: string
@@ -139,6 +140,8 @@ export default function BookingDetailPage() {
         return "bg-blue-100 text-blue-800"
       case "ACTIVE":
         return "bg-green-100 text-green-800"
+      case "STARTED":
+        return "bg-purple-100 text-purple-800"
       case "COMPLETED":
         return "bg-gray-100 text-gray-800"
       case "CANCELLED":
@@ -156,6 +159,8 @@ export default function BookingDetailPage() {
         return "Bekreftet"
       case "ACTIVE":
         return "Aktiv"
+      case "STARTED":
+        return "Pågår"
       case "COMPLETED":
         return "Fullført"
       case "CANCELLED":
@@ -235,26 +240,36 @@ export default function BookingDetailPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-1">Sluttid</h3>
-                  <p className="text-gray-900">
-                    {new Date(booking.endTime).toLocaleDateString("no-NO", {
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })}
-                  </p>
-                  <p className="text-gray-900">
-                    {new Date(booking.endTime).toLocaleTimeString("no-NO", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
+                  {booking.endTime ? (
+                    <>
+                      <p className="text-gray-900">
+                        {new Date(booking.endTime).toLocaleDateString("no-NO", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                      <p className="text-gray-900">
+                        {new Date(booking.endTime).toLocaleTimeString("no-NO", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-gray-900">Pågår (ingen sluttid satt)</p>
+                  )}
                 </div>
               </div>
 
               <div>
                 <h3 className="text-sm font-medium text-gray-700 mb-1">Totalpris</h3>
                 <p className="text-2xl font-bold text-blue-600">
-                  {booking.totalPrice.toFixed(2)} NOK
+                  {booking.totalPrice 
+                    ? `${booking.totalPrice.toFixed(2)} NOK`
+                    : booking.status === "STARTED"
+                      ? "Beregnes ved stopp"
+                      : "Ikke satt"}
                 </p>
               </div>
 

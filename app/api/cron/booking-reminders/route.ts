@@ -50,18 +50,21 @@ export async function GET(request: Request) {
     const results = await Promise.allSettled(
       upcomingBookings.map(async (booking) => {
         try {
-          await sendEmail({
-            to: booking.user.email,
-            ...getBookingReminderEmail(booking.user.name, {
-              address: booking.parkingSpot.address,
-              startTime: booking.startTime.toISOString(),
-              endTime: booking.endTime.toISOString(),
-              type: booking.parkingSpot.type,
-              qrCode: booking.qrCode,
-              latitude: booking.parkingSpot.latitude,
-              longitude: booking.parkingSpot.longitude,
-            }),
-          })
+          // For ADVANCE bookinger skal endTime alltid være satt
+          if (booking.endTime) {
+            await sendEmail({
+              to: booking.user.email,
+              ...getBookingReminderEmail(booking.user.name, {
+                address: booking.parkingSpot.address,
+                startTime: booking.startTime.toISOString(),
+                endTime: booking.endTime.toISOString(),
+                type: booking.parkingSpot.type,
+                qrCode: booking.qrCode,
+                latitude: booking.parkingSpot.latitude,
+                longitude: booking.parkingSpot.longitude,
+              }),
+            })
+          }
           return { bookingId: booking.id, success: true }
         } catch (error) {
           console.error(`Error sending reminder for booking ${booking.id}:`, error)

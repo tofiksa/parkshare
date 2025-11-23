@@ -68,6 +68,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // For ADVANCE bookinger skal totalPrice alltid være satt
+    if (!booking.totalPrice) {
+      return NextResponse.json(
+        { error: "Booking mangler totalpris" },
+        { status: 400 }
+      )
+    }
+
     // Opprett eller oppdater Payment Intent
     const amountInOre = convertNokToOre(booking.totalPrice)
 
@@ -95,10 +103,11 @@ export async function POST(request: Request) {
         where: { bookingId: validatedData.bookingId },
         create: {
           bookingId: validatedData.bookingId,
-          amount: booking.totalPrice,
+          amount: booking.totalPrice, // Allerede validert over
           currency: "NOK",
           stripePaymentId: paymentIntent.id,
           status: "PENDING",
+          paymentType: booking.bookingType === "ON_DEMAND" ? "ON_DEMAND" : "ADVANCE",
         },
         update: {
           stripePaymentId: paymentIntent.id,

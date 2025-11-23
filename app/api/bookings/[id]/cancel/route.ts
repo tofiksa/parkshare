@@ -93,7 +93,8 @@ export async function POST(
     }
 
     // Refunder betaling hvis booking er betalt
-    if (payment && payment.status === "COMPLETED" && payment.stripePaymentId && stripe) {
+    // For ADVANCE bookinger skal totalPrice alltid være satt
+    if (payment && payment.status === "COMPLETED" && payment.stripePaymentId && stripe && booking.totalPrice) {
       try {
         // Opprett refund i Stripe
         await stripe.refunds.create({
@@ -132,7 +133,7 @@ export async function POST(
         ...getCancellationEmail(booking.user.name, {
           address: booking.parkingSpot.address,
           startTime: booking.startTime.toISOString(),
-          totalPrice: booking.totalPrice,
+          totalPrice: booking.totalPrice || 0, // ADVANCE bookinger skal ha totalPrice
         }),
       }),
       // E-post til utleier
@@ -147,7 +148,7 @@ export async function POST(
             <li><strong>Adresse:</strong> ${booking.parkingSpot.address}</li>
             <li><strong>Leietaker:</strong> ${booking.user.name}</li>
             <li><strong>Planlagt starttid:</strong> ${new Date(booking.startTime).toLocaleString("no-NO")}</li>
-            <li><strong>Refundert beløp:</strong> ${booking.totalPrice.toFixed(2)} NOK</li>
+            <li><strong>Refundert beløp:</strong> ${(booking.totalPrice || 0).toFixed(2)} NOK</li>
           </ul>
           <p><a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/dashboard/bookings">Se bookinger i dashboard</a></p>
         `,

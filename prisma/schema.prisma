@@ -26,27 +26,36 @@ model User {
   sentMessages            Message[]         @relation("MessageSender")
   parkingSpots            ParkingSpot[]
   termsAcceptances        TermsAcceptance[]
+  vehicles                Vehicle[]
 
   @@map("users")
 }
 
 model ParkingSpot {
-  id           String      @id @default(cuid())
-  userId       String
-  type         ParkingType
-  address      String
-  latitude     Float?
-  longitude    Float?
-  imageUrl     String?
-  qrCode       String?     @unique
-  pricePerHour Float
-  description  String?
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  bookings     Booking[]
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                      String      @id @default(cuid())
+  userId                  String
+  type                    ParkingType
+  address                 String
+  latitude                Float?
+  longitude               Float?
+  imageUrl                String?
+  qrCode                  String?     @unique
+  pricePerHour            Float
+  pricePerMinute          Float?
+  description             String?
+  isActive                Boolean     @default(true)
+  supportsAdvanceBooking  Boolean     @default(true)
+  supportsOnDemandBooking Boolean     @default(false)
+  gpsToleranceMeters      Float?      @default(50)
+  zoneNumber              String?
+  zoneName                String?
+  operator                String?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+  bookings                Booking[]
+  user                    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([latitude, longitude])
   @@map("parking_spots")
 }
 
@@ -54,22 +63,36 @@ model Booking {
   id              String           @id @default(cuid())
   parkingSpotId   String
   userId          String
+  bookingType     BookingType     @default(ADVANCE)
   startTime       DateTime
-  endTime         DateTime
-  totalPrice      Float
-  status          BookingStatus    @default(PENDING)
-  qrCode          String?          @unique
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  endTime         DateTime?       // Nullable for ON_DEMAND, but REQUIRED for ADVANCE (validated in app)
+  actualStartTime DateTime?
+  actualEndTime   DateTime?
+  totalPrice      Float?          // Nullable for ON_DEMAND, but REQUIRED for ADVANCE (validated in app)
+  estimatedPrice  Float?
+  durationMinutes Int?
+  status          BookingStatus   @default(PENDING)
+  qrCode          String?         @unique
+  gpsStartLat     Float?
+  gpsStartLng     Float?
+  gpsEndLat       Float?
+  gpsEndLng       Float?
+  vehiclePlate    String?
+  vehicleId       String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   cancelledAt     DateTime?
-  parkingSpot     ParkingSpot      @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parkingSpot     ParkingSpot     @relation(fields: [parkingSpotId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?        @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   messages        Message[]
   termsAcceptance TermsAcceptance?
 
   @@index([parkingSpotId])
   @@index([userId])
   @@index([startTime, endTime])
+  @@index([status, bookingType])
+  @@index([userId, status])
   @@map("bookings")
 }
 
@@ -104,18 +127,35 @@ model TermsAcceptance {
 }
 
 model Payment {
-  id              String    @id @default(cuid())
-  bookingId       String    @unique
+  id              String      @id @default(cuid())
+  bookingId       String      @unique
   amount          Float
-  currency        String    @default("NOK")
-  stripePaymentId String?   @unique
+  currency        String      @default("NOK")
+  stripePaymentId String?     @unique
   status          String
+  paymentType     PaymentType  @default(ADVANCE)
   refundedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([bookingId])
   @@map("payments")
+}
+
+model Vehicle {
+  id          String   @id @default(cuid())
+  userId      String
+  plateNumber String
+  make        String?
+  model       String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+
+  @@index([userId])
+  @@map("vehicles")
 }
 
 enum UserType {
@@ -128,10 +168,21 @@ enum ParkingType {
   INNENDORS
 }
 
+enum BookingType {
+  ADVANCE
+  ON_DEMAND
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
   ACTIVE
   COMPLETED
   CANCELLED
+  STARTED
+}
+
+enum PaymentType {
+  ADVANCE
+  ON_DEMAND
 }

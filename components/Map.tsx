@@ -10,7 +10,11 @@ interface ParkingSpot {
   latitude: number | null
   longitude: number | null
   pricePerHour: number
+  pricePerMinute?: number
   type: "UTENDORS" | "INNENDORS"
+  zoneNumber?: string | null
+  zoneName?: string | null
+  operator?: string | null
 }
 
 interface MapProps {
@@ -75,12 +79,20 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapPr
           iconAnchor: [15, 15],
         })
 
+        const zoneInfo = spot.zoneNumber 
+          ? `P ${spot.zoneNumber}${spot.zoneName ? ` - ${spot.zoneName}` : ""}`
+          : spot.address
+        const priceInfo = spot.pricePerMinute 
+          ? `${spot.pricePerMinute.toFixed(2)} NOK/min`
+          : `${spot.pricePerHour} NOK/time`
+
         const marker = L.marker([spot.latitude, spot.longitude], { icon: customIcon })
           .addTo(map)
           .bindPopup(`
             <div>
-              <strong>${spot.address}</strong><br/>
-              ${spot.pricePerHour} NOK/time<br/>
+              <strong>${zoneInfo}</strong><br/>
+              ${priceInfo}<br/>
+              ${spot.operator ? `${spot.operator}<br/>` : ""}
               ${spot.type === "UTENDORS" ? "Utendørs" : "Innendørs"}
             </div>
           `)

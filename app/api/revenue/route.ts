@@ -62,8 +62,8 @@ export async function GET(request: Request) {
       },
     })
 
-    // Beregn total inntekt
-    const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0)
+    // Beregn total inntekt (kun bookinger med totalPrice)
+    const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0)
 
     // Beregn inntekt per parkeringsplass
     const revenueBySpot = bookings.reduce((acc, booking) => {
@@ -76,7 +76,7 @@ export async function GET(request: Request) {
           bookings: 0,
         }
       }
-      acc[spotId].revenue += booking.totalPrice
+      acc[spotId].revenue += booking.totalPrice || 0
       acc[spotId].bookings += 1
       return acc
     }, {} as Record<string, { spotId: string; address: string; revenue: number; bookings: number }>)

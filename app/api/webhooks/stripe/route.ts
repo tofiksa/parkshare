@@ -64,6 +64,7 @@ export async function POST(request: Request) {
           where: { bookingId },
           data: {
             status: "COMPLETED",
+            // paymentType er allerede satt ved opprettelse
           },
         })
 

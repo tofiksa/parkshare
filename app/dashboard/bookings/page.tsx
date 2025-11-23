@@ -8,9 +8,10 @@ import Navigation from "@/components/Navigation"
 interface Booking {
   id: string
   startTime: string
-  endTime: string
-  totalPrice: number
-  status: "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED"
+  endTime: string | null
+  totalPrice: number | null
+  status: "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED" | "STARTED"
+  bookingType?: "ADVANCE" | "ON_DEMAND"
   parkingSpot: {
     id: string
     address: string
@@ -63,6 +64,8 @@ export default function BookingsPage() {
         return "bg-blue-100 text-blue-800"
       case "ACTIVE":
         return "bg-green-100 text-green-800"
+      case "STARTED":
+        return "bg-purple-100 text-purple-800"
       case "COMPLETED":
         return "bg-gray-100 text-gray-800"
       case "CANCELLED":
@@ -80,6 +83,8 @@ export default function BookingsPage() {
         return "Bekreftet"
       case "ACTIVE":
         return "Aktiv"
+      case "STARTED":
+        return "Pågår"
       case "COMPLETED":
         return "Fullført"
       case "CANCELLED":
@@ -92,15 +97,15 @@ export default function BookingsPage() {
   const filteredBookings = bookings.filter((booking) => {
     const now = new Date()
     const startTime = new Date(booking.startTime)
-    const endTime = new Date(booking.endTime)
+    const endTime = booking.endTime ? new Date(booking.endTime) : null
 
     switch (filter) {
       case "active":
-        return booking.status === "ACTIVE" || booking.status === "CONFIRMED"
+        return booking.status === "ACTIVE" || booking.status === "CONFIRMED" || booking.status === "STARTED"
       case "upcoming":
-        return startTime > now && booking.status !== "CANCELLED"
+        return (startTime > now && booking.status !== "CANCELLED") || booking.status === "STARTED"
       case "past":
-        return endTime < now || booking.status === "COMPLETED" || booking.status === "CANCELLED"
+        return (endTime && endTime < now) || booking.status === "COMPLETED" || booking.status === "CANCELLED"
       default:
         return true
     }
@@ -234,15 +239,21 @@ export default function BookingsPage() {
                             minute: "2-digit",
                           })}{" "}
                           -{" "}
-                          {new Date(booking.endTime).toLocaleTimeString("no-NO", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {booking.endTime 
+                            ? new Date(booking.endTime).toLocaleTimeString("no-NO", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "Pågår"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {booking.totalPrice.toFixed(2)} NOK
+                          {booking.totalPrice 
+                            ? `${booking.totalPrice.toFixed(2)} NOK`
+                            : booking.status === "STARTED" 
+                              ? "Beregnes ved stopp"
+                              : "Ikke satt"}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

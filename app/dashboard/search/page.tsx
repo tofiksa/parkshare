@@ -31,8 +31,9 @@ export default function SearchPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start med loading=true
   const [error, setError] = useState("")
+  const parkingSpotsRef = useRef<ParkingSpot[]>([]) // Ref for å holde styr på eksisterende data
   const [filters, setFilters] = useState({
     startDate: "",
     startTime: "",
@@ -48,17 +49,25 @@ export default function SearchPage() {
   const hasSearchedRef = useRef(false)
 
   const searchParkingSpots = useCallback(async () => {
-    // Kanseller pågående request hvis det finnes
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort()
-    }
-
-    // Opprett ny abort controller
+    // Opprett ny abort controller FØR vi kansellerer den gamle
     const abortController = new AbortController()
+    const previousController = abortControllerRef.current
     abortControllerRef.current = abortController
+
+    // Kanseller forrige request, men ikke hvis den allerede er ferdig
+    if (previousController && !previousController.signal.aborted) {
+      previousController.abort()
+    }
 
     setLoading(true)
     setError("")
+    
+    // Sett en timeout for å unngå at loading forblir true hvis noe går galt
+    const loadingTimeout = setTimeout(() => {
+      if (!abortController.signal.aborted) {
+        setLoading(false)
+      }
+    }, 10000) // 10 sekunder timeout
 
     try {
       const params = new URLSearchParams()
@@ -84,7 +93,9 @@ export default function SearchPage() {
         params.append("type", filters.type)
       }
 
-      if (filters.maxDistance) {
+      // Kun legg til maxDistance hvis brukeren har GPS-koordinater
+      // Hvis ikke, vis alle plasser uavhengig av avstand
+      if (userLocation && filters.maxDistance) {
         params.append("maxDistance", filters.maxDistance)
       }
 
@@ -101,10 +112,20 @@ export default function SearchPage() {
       
       // Bare oppdater hvis request ikke er kansellert
       if (!abortController.signal.aborted) {
-        setParkingSpots(data)
+        clearTimeout(loadingTimeout)
+        // Sørg for at data er en array
+        const spots = Array.isArray(data) ? data : []
+        // Oppdater state og ref
+        // Hvis vi har data, oppdater alltid. Hvis tom, kun oppdater hvis vi ikke har data fra før
+        if (spots.length > 0 || parkingSpotsRef.current.length === 0) {
+          setParkingSpots(spots)
+          parkingSpotsRef.current = spots
+        }
         hasSearchedRef.current = true
+        setLoading(false)
       }
     } catch (err) {
+      clearTimeout(loadingTimeout)
       // Ignorer abort errors
       if (err instanceof Error && err.name === "AbortError") {
         return
@@ -112,13 +133,17 @@ export default function SearchPage() {
       
       const errorMessage = err instanceof Error ? err.message : "Kunne ikke laste parkeringsplasser"
       setError(errorMessage)
+      setLoading(false)
+      
+      // IKKE tøm parkeringsplasser ved feil - behold eksisterende data
+      // Dette sikrer at data ikke forsvinner hvis et nytt søk feiler
+      // Kun oppdater hvis vi ikke har noen data fra før
+      if (parkingSpotsRef.current.length === 0) {
+        setParkingSpots([])
+      }
+      
       if (process.env.NODE_ENV === "development") {
         console.error("Error searching parking spots:", err)
-      }
-    } finally {
-      // Bare oppdater loading state hvis request ikke er kansellert
-      if (!abortController.signal.aborted) {
-        setLoading(false)
       }
     }
   }, [userLocation, filters])
@@ -152,16 +177,18 @@ export default function SearchPage() {
       clearTimeout(searchTimeoutRef.current)
     }
 
-    // Hvis dette er første søk, søk umiddelbart
+    // Hvis dette er første søk, søk umiddelbart (uten filtre for å vise alle plasser)
+    // Vent ikke på userLocation - søk med en gang
     if (!hasSearchedRef.current) {
       searchParkingSpots()
       return
     }
 
-    // Ellers, debounce søket med 500ms
+    // Ellers, debounce søket med 800ms (økt fra 500ms for å unngå for mange requests)
+    // Dette gir tidligere søk tid til å fullføre
     searchTimeoutRef.current = setTimeout(() => {
       searchParkingSpots()
-    }, 500)
+    }, 800)
 
     // Cleanup
     return () => {

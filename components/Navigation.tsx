@@ -53,6 +53,12 @@ export default function Navigation() {
               ) : (
                 <>
                   <Link
+                    href="/dashboard/parking/active"
+                    className="hidden sm:block px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
+                  >
+                    Aktiv parkering
+                  </Link>
+                  <Link
                     href="/dashboard/search"
                     className="hidden sm:block px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                   >

@@ -73,12 +73,14 @@ export async function POST(request: Request) {
       )
     }
 
-    // Sjekk tilgjengelighet
+    // Sjekk tilgjengelighet (kun for ADVANCE bookinger)
+    // Ekskluder STARTED status og kun sjekk ADVANCE bookinger
     const conflictingBookings = await prisma.booking.findFirst({
       where: {
         parkingSpotId: validatedData.parkingSpotId,
+        bookingType: "ADVANCE", // KUN sjekk ADVANCE bookinger
         status: {
-          in: ["PENDING", "CONFIRMED", "ACTIVE"],
+          in: ["PENDING", "CONFIRMED", "ACTIVE"], // Ikke STARTED
         },
         OR: [
           {
@@ -128,13 +130,22 @@ export async function POST(request: Request) {
     }
 
     // Opprett booking med terms acceptance
+    // Valider at endTime og totalPrice er satt for ADVANCE
+    if (!endTime || !totalPrice) {
+      return NextResponse.json(
+        { error: "ADVANCE booking må ha endTime og totalPrice" },
+        { status: 400 }
+      )
+    }
+
     const booking = await prisma.booking.create({
       data: {
         parkingSpotId: validatedData.parkingSpotId,
         userId: session.user.id,
+        bookingType: "ADVANCE", // Eksplisitt sett bookingType
         startTime,
-        endTime,
-        totalPrice,
+        endTime, // Required for ADVANCE
+        totalPrice, // Required for ADVANCE
         status: "PENDING",
         qrCode,
         termsAcceptance: {
@@ -170,41 +181,44 @@ export async function POST(request: Request) {
     })
 
     // Send e-postnotifikasjoner (async, ikke blokkerer respons)
-    Promise.all([
-      // E-post til leietaker
-      sendEmail({
-        to: booking.user.email,
-        ...getBookingConfirmationEmail(booking.user.name, {
-          address: booking.parkingSpot.address,
-          startTime: new Date(booking.startTime).toISOString(),
-          endTime: new Date(booking.endTime).toISOString(),
-          totalPrice: booking.totalPrice,
-          type: booking.parkingSpot.type,
-          qrCode: booking.qrCode,
+    // For ADVANCE bookinger er endTime og totalPrice alltid satt
+    if (booking.endTime && booking.totalPrice) {
+      Promise.all([
+        // E-post til leietaker
+        sendEmail({
+          to: booking.user.email,
+          ...getBookingConfirmationEmail(booking.user.name, {
+            address: booking.parkingSpot.address,
+            startTime: new Date(booking.startTime).toISOString(),
+            endTime: new Date(booking.endTime).toISOString(),
+            totalPrice: booking.totalPrice,
+            type: booking.parkingSpot.type,
+            qrCode: booking.qrCode,
+          }),
         }),
-      }),
-      // E-post til utleier
-      sendEmail({
-        to: booking.parkingSpot.user.email,
-        subject: `Ny booking på ${booking.parkingSpot.address}`,
-        html: `
-          <h2>Ny booking mottatt</h2>
-          <p>Hei ${booking.parkingSpot.user.name},</p>
-          <p>Du har mottatt en ny booking på din parkeringsplass:</p>
-          <ul>
-            <li><strong>Adresse:</strong> ${booking.parkingSpot.address}</li>
-            <li><strong>Leietaker:</strong> ${booking.user.name}</li>
-            <li><strong>Starttid:</strong> ${new Date(booking.startTime).toLocaleString("no-NO")}</li>
-            <li><strong>Sluttid:</strong> ${new Date(booking.endTime).toLocaleString("no-NO")}</li>
-            <li><strong>Totalpris:</strong> ${booking.totalPrice.toFixed(2)} NOK</li>
-          </ul>
-          <p><a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/dashboard/bookings">Se booking i dashboard</a></p>
-        `,
-      }),
-    ]).catch((error) => {
-      console.error("Error sending booking confirmation emails:", error)
-      // Ikke feil hvis e-post feiler - booking er fortsatt opprettet
-    })
+        // E-post til utleier
+        sendEmail({
+          to: booking.parkingSpot.user.email,
+          subject: `Ny booking på ${booking.parkingSpot.address}`,
+          html: `
+            <h2>Ny booking mottatt</h2>
+            <p>Hei ${booking.parkingSpot.user.name},</p>
+            <p>Du har mottatt en ny booking på din parkeringsplass:</p>
+            <ul>
+              <li><strong>Adresse:</strong> ${booking.parkingSpot.address}</li>
+              <li><strong>Leietaker:</strong> ${booking.user.name}</li>
+              <li><strong>Starttid:</strong> ${new Date(booking.startTime).toLocaleString("no-NO")}</li>
+              <li><strong>Sluttid:</strong> ${new Date(booking.endTime).toLocaleString("no-NO")}</li>
+              <li><strong>Totalpris:</strong> ${booking.totalPrice.toFixed(2)} NOK</li>
+            </ul>
+            <p><a href="${process.env.NEXTAUTH_URL || "http://localhost:3000"}/dashboard/bookings">Se booking i dashboard</a></p>
+          `,
+        }),
+      ]).catch((error) => {
+        console.error("Error sending booking confirmation emails:", error)
+        // Ikke feil hvis e-post feiler - booking er fortsatt opprettet
+      })
+    }
 
     return NextResponse.json(booking, { status: 201 })
   } catch (error) {

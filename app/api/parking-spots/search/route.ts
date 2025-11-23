@@ -70,10 +70,13 @@ export async function GET(request: Request) {
       const startTime = new Date(validatedQuery.startTime)
       const endTime = new Date(validatedQuery.endTime)
 
+      // Kun sjekk ADVANCE bookinger for tilgjengelighet
+      // STARTED (ON_DEMAND) bookinger påvirker ikke ADVANCE søk
       const spotsWithBookings = await prisma.booking.findMany({
         where: {
+          bookingType: "ADVANCE", // KUN ADVANCE bookinger
           status: {
-            in: ["PENDING", "CONFIRMED", "ACTIVE"],
+            in: ["PENDING", "CONFIRMED", "ACTIVE"], // Ikke STARTED
           },
           OR: [
             {
@@ -105,7 +108,8 @@ export async function GET(request: Request) {
       parkingSpots = parkingSpots.filter((spot) => !bookedSpotIds.has(spot.id))
     }
 
-    // Filtrer på avstand hvis koordinater er gitt
+    // Filtrer på avstand hvis koordinater OG maxDistance er gitt
+    // Hvis kun koordinater er gitt uten maxDistance, vis alle plasser (men inkluder koordinater i response)
     if (validatedQuery.latitude && validatedQuery.longitude && validatedQuery.maxDistance) {
       parkingSpots = parkingSpots.filter((spot) => {
         if (!spot.latitude || !spot.longitude) return false
@@ -120,6 +124,8 @@ export async function GET(request: Request) {
         return distance <= validatedQuery.maxDistance!
       })
     }
+    // Hvis ingen filtre er satt, returner alle aktive plasser
+    // Dette sikrer at brukeren alltid ser noe når de åpner søkesiden
 
     return NextResponse.json(parkingSpots)
   } catch (error) {

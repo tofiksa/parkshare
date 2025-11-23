@@ -83,7 +83,27 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Link
+              href="/dashboard/parking/map"
+              className="group bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg hover:shadow-xl transition-all p-8 border border-gray-100 transform hover:scale-105 text-white"
+            >
+              <div className="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <h3 className="text-2xl font-bold mb-3">Start parkering</h3>
+              <p className="mb-4 opacity-90">Start parkering når du ankommer. Betal kun for faktisk tid.</p>
+              <span className="inline-flex items-center font-semibold group-hover:translate-x-1 transition-transform">
+                Start nå
+                <svg className="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </span>
+            </Link>
+
             <Link
               href="/dashboard/search"
               className="group bg-white rounded-xl shadow-lg hover:shadow-xl transition-all p-8 border border-gray-100 transform hover:scale-105"
