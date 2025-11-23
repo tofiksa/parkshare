@@ -44,7 +44,15 @@ function CheckoutForm({ bookingId, amount, onSuccess, onError }: PaymentFormProp
       const data = await response.json()
 
       if (!response.ok) {
+        // Hvis Stripe ikke er konfigurert, vis en mer informativ melding
+        if (data.error === "Stripe er ikke konfigurert") {
+          throw new Error("Stripe er ikke konfigurert. Kontakt administrator for å aktivere betalinger.")
+        }
         throw new Error(data.error || "Kunne ikke opprette betaling")
+      }
+
+      if (!data.clientSecret) {
+        throw new Error("Mangler betalingsinformasjon fra server")
       }
 
       setClientSecret(data.clientSecret)

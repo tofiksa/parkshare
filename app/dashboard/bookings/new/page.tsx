@@ -67,22 +67,44 @@ function NewBookingPageContent() {
     setError("")
 
     try {
+      const requestBody = {
+        parkingSpotId: spotId,
+        startTime: startTime || "",
+        endTime: endTime || "",
+        termsAccepted,
+      }
+      
+      console.log("Sending booking request:", JSON.stringify(requestBody, null, 2))
+      
       const response = await fetch("/api/bookings/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          parkingSpotId: spotId,
-          startTime,
-          endTime,
-          termsAccepted,
-        }),
+        body: JSON.stringify(requestBody),
       })
 
-      const data = await response.json()
+      const contentType = response.headers.get("content-type")
+      let data
+      
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          data = await response.json()
+        } catch (jsonError) {
+          console.error("Failed to parse JSON response:", jsonError)
+          setError("Server returnerte ugyldig respons.")
+          return
+        }
+      } else {
+        const text = await response.text()
+        console.error("Server returned non-JSON response:", text.substring(0, 200))
+        setError("Server returnerte ugyldig respons. Sjekk console for detaljer.")
+        return
+      }
 
       if (!response.ok) {
+        console.error("Booking creation failed:", JSON.stringify(data, null, 2))
+        console.error("Response status:", response.status)
         setError(data.error || "Kunne ikke opprette booking")
         return
       }
@@ -258,11 +280,36 @@ function NewBookingPageContent() {
               <div className="space-y-4">
                 <div className="border-t pt-6">
                   <h2 className="text-xl font-semibold mb-4">Betalingsinformasjon</h2>
+                  {error && (
+                    <div className="mb-4 rounded-md bg-red-50 p-4 border border-red-200">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg
+                            className="h-5 w-5 text-red-400"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-red-800">{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <PaymentForm
                     bookingId={bookingId}
                     amount={parseFloat(totalPrice)}
                     onSuccess={handlePaymentSuccess}
-                    onError={(error) => setError(error)}
+                    onError={(error) => {
+                      console.error("Payment form error:", error)
+                      setError(error)
+                    }}
                   />
                 </div>
                 <Link

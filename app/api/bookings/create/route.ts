@@ -11,8 +11,18 @@ export const dynamic = "force-dynamic"
 
 const createBookingSchema = z.object({
   parkingSpotId: z.string(),
-  startTime: z.string().datetime(),
-  endTime: z.string().datetime(),
+  startTime: z.string().refine((val) => {
+    const date = new Date(val)
+    return !isNaN(date.getTime())
+  }, {
+    message: "Ugyldig starttid format",
+  }),
+  endTime: z.string().refine((val) => {
+    const date = new Date(val)
+    return !isNaN(date.getTime())
+  }, {
+    message: "Ugyldig sluttid format",
+  }),
   termsAccepted: z.boolean().refine((val) => val === true, {
     message: "Du må godkjenne avtalevilkårene",
   }),
@@ -34,6 +44,10 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    
+    // Debug logging
+    console.log("Booking create request body:", JSON.stringify(body, null, 2))
+    
     const validatedData = createBookingSchema.parse(body)
 
     const startTime = new Date(validatedData.startTime)
@@ -158,10 +172,6 @@ export async function POST(request: Request) {
       },
       include: {
         parkingSpot: {
-          select: {
-            address: true,
-            type: true,
-          },
           include: {
             user: {
               select: {
@@ -177,6 +187,7 @@ export async function POST(request: Request) {
             name: true,
           },
         },
+        termsAcceptance: true,
       },
     })
 
