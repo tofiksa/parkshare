@@ -103,7 +103,7 @@ export async function GET(request: Request) {
     
     // Sjekk tilgjengelighet (finn aktive ON_DEMAND bookinger)
     console.log("Checking for active bookings...")
-    let activeBookings
+    let activeBookings: Array<{ parkingSpotId: string }> = []
     try {
       activeBookings = await prisma.booking.findMany({
         where: {
