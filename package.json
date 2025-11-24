@@ -14,7 +14,8 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx scripts/seed-test-data.ts",
     "db:migrate:seed": "tsx scripts/migrate-and-seed.ts",
-    "db:migrate:seed:full": "tsx scripts/migrate-and-seed.ts --migrate"
+    "db:migrate:seed:full": "tsx scripts/migrate-and-seed.ts --migrate",
+    "github:issue": "node scripts/create-github-issue.js"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",

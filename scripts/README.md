@@ -97,3 +97,71 @@ npm run db:seed
 - Scriptet er idempotent - du kan kjøre det flere ganger trygt
 - Test-brukere opprettes kun hvis de ikke allerede eksisterer
 
+---
+
+## Create GitHub Issue
+
+Script for å opprette GitHub issues via GitHub API.
+
+### Setup
+
+1. **Opprett en GitHub Personal Access Token:**
+   - Gå til: https://github.com/settings/tokens
+   - Klikk "Generate new token (classic)"
+   - Gi tokenet et navn (f.eks. "Parkshare Issue Creator")
+   - Velg scope: `repo` (full kontroll over private repositories)
+   - Klikk "Generate token"
+   - **Kopier tokenet** (du vil ikke se det igjen!)
+
+2. **Sett miljøvariabel:**
+   ```bash
+   export GITHUB_TOKEN=ghp_ditt_token_her
+   ```
+   
+   Eller legg det til i din `.env.local` fil (husk å legge `.env.local` i `.gitignore` hvis den ikke allerede er der).
+
+### Usage
+
+**Fra fil:**
+```bash
+GITHUB_TOKEN=ghp_xxx node scripts/create-github-issue.js \
+  "Bug: User type not correctly identified" \
+  "$(cat BUG_REPORT.md)" \
+  "bug,high priority"
+```
+
+**Med direkte tekst:**
+```bash
+GITHUB_TOKEN=ghp_xxx node scripts/create-github-issue.js \
+  "Feature: Add dark mode" \
+  "Beskrivelse av featuren her..." \
+  "enhancement"
+```
+
+**Med npm script (hvis GITHUB_TOKEN er satt i miljøet):**
+```bash
+npm run github:issue -- "Bug: Title" "Body text" "bug,high"
+```
+
+### Parameters
+
+1. **Title** (påkrevd): Tittel på issue
+2. **Body** (valgfritt): Beskrivelse av issue (kan være tom)
+3. **Labels** (valgfritt): Kommaseparert liste med labels (f.eks. "bug,high priority,frontend")
+
+### Eksempel
+
+```bash
+# Opprett issue fra BUG_REPORT.md
+GITHUB_TOKEN=ghp_xxx node scripts/create-github-issue.js \
+  "Bug: User type not correctly identified in session" \
+  "$(cat BUG_REPORT.md)" \
+  "bug,high priority"
+```
+
+### Notes
+
+- Tokenet trenger `repo` scope for å kunne opprette issues
+- Scriptet bruker GitHub API v3
+- Repository er satt til `tofiksa/parkshare` (kan endres i scriptet hvis nødvendig)
+
