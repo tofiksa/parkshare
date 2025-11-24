@@ -21,11 +21,13 @@ interface MapProps {
   parkingSpots: ParkingSpot[]
   userLocation: { lat: number; lng: number } | null
   onMarkerClick: (spotId: string) => void
+  onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void
 }
 
-export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapProps) {
+export default function Map({ parkingSpots, userLocation, onMarkerClick, onBoundsChange }: MapProps) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
+  const markersRef = useRef<L.Marker[]>([])
 
   useEffect(() => {
     if (!mapContainerRef.current) return
@@ -36,7 +38,8 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapPr
         ? [userLocation.lat, userLocation.lng]
         : [59.9139, 10.7522] // Default to Oslo
 
-      mapRef.current = L.map(mapContainerRef.current).setView(center, 13)
+      // Zoom level 15 tilsvarer ca. 1km radius
+      mapRef.current = L.map(mapContainerRef.current).setView(center, 15)
 
       // Add tile layer
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -48,11 +51,10 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapPr
     const map = mapRef.current
 
     // Clear existing markers
-    map.eachLayer((layer) => {
-      if (layer instanceof L.Marker) {
-        map.removeLayer(layer)
-      }
+    markersRef.current.forEach(marker => {
+      map.removeLayer(marker)
     })
+    markersRef.current = []
 
     // Add user location marker
     if (userLocation) {
@@ -63,9 +65,10 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapPr
         iconAnchor: [10, 10],
       })
 
-      L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+      const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
         .addTo(map)
         .bindPopup("Din lokasjon")
+      markersRef.current.push(userMarker)
     }
 
     // Add parking spot markers
@@ -100,21 +103,42 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick }: MapPr
         marker.on("click", () => {
           onMarkerClick(spot.id)
         })
+        
+        markersRef.current.push(marker)
       }
     })
 
-    // Fit map to show all markers
-    if (parkingSpots.length > 0 || userLocation) {
-      const points: [number, number][] = [
-        ...parkingSpots
-          .filter((s) => s.latitude && s.longitude)
-          .map((s) => [s.latitude!, s.longitude!] as [number, number]),
-        ...(userLocation ? [[userLocation.lat, userLocation.lng] as [number, number]] : []),
-      ]
-      const bounds = L.latLngBounds(points)
-      map.fitBounds(bounds, { padding: [50, 50] })
+    // Funksjon for å sende bounds til parent
+    const updateBounds = () => {
+      if (onBoundsChange && map) {
+        // Vent litt for å sikre at kartet er ferdig med å laste
+        setTimeout(() => {
+          if (map && map.getBounds) {
+            const bounds = map.getBounds()
+            onBoundsChange({
+              north: bounds.getNorth(),
+              south: bounds.getSouth(),
+              east: bounds.getEast(),
+              west: bounds.getWest(),
+            })
+          }
+        }, 100)
+      }
     }
-  }, [parkingSpots, userLocation, onMarkerClick])
+
+    // Send initial bounds etter at kartet er ferdig initialisert
+    setTimeout(updateBounds, 200)
+
+    // Lytte på zoom og pan endringer
+    map.on("moveend", updateBounds)
+    map.on("zoomend", updateBounds)
+
+    // Cleanup
+    return () => {
+      map.off("moveend", updateBounds)
+      map.off("zoomend", updateBounds)
+    }
+  }, [parkingSpots, userLocation, onMarkerClick, onBoundsChange])
 
   return <div ref={mapContainerRef} className="h-full w-full" />
 }

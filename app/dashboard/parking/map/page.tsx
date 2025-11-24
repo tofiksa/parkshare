@@ -40,8 +40,9 @@ export default function ParkingMapPage() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
-  const parkingSpotsRef = useRef<ParkingSpot[]>([]) // Ref for å holde styr på eksisterende data
+  const allParkingSpotsRef = useRef<ParkingSpot[]>([]) // Ref for å holde ALLE parkeringsplasser fra API
   const hasSearchedRef = useRef(false) // Track om vi har søkt
+  const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null)
 
   const fetchParkingSpots = useCallback(async () => {
     // Hvis ingen userLocation, bruk Oslo sentrum som fallback
@@ -77,9 +78,9 @@ export default function ParkingMapPage() {
     }, 10000)
 
     try {
-      console.log("Fetching from:", `/api/parking-spots/map?latitude=${location.lat}&longitude=${location.lng}&radius=10`)
+      console.log("Fetching from:", `/api/parking-spots/map?latitude=${location.lat}&longitude=${location.lng}&radius=1`)
       const response = await fetch(
-        `/api/parking-spots/map?latitude=${location.lat}&longitude=${location.lng}&radius=10`,
+        `/api/parking-spots/map?latitude=${location.lat}&longitude=${location.lng}&radius=1`,
         { signal: abortController.signal }
       )
       
@@ -101,9 +102,18 @@ export default function ParkingMapPage() {
         // Debug logging
         console.log("Fetched parking spots:", spots.length, "spots:", spots)
         
-        // Oppdater state og ref - alltid oppdater
-        setParkingSpots(spots)
-        parkingSpotsRef.current = spots
+        // Lagre alle parkeringsplasser i ref (alle fra API, ikke filtrert)
+        allParkingSpotsRef.current = spots
+        
+        // Filtrer basert på kartets bounds hvis de er satt
+        if (mapBounds) {
+          const filteredSpots = filterSpotsByBounds(spots, mapBounds)
+          setParkingSpots(filteredSpots)
+        } else {
+          // Hvis ingen bounds ennå, vis alle (vil bli filtrert når kartet laster)
+          setParkingSpots(spots)
+        }
+        
         setError("") // Clear error hvis vi fikk data
         setLoading(false)
         
@@ -131,7 +141,7 @@ export default function ParkingMapPage() {
       
       // IKKE tøm parkeringsplasser ved feil - behold eksisterende data
       // Kun oppdater hvis vi ikke har noen data fra før
-      if (parkingSpotsRef.current.length === 0) {
+      if (allParkingSpotsRef.current.length === 0) {
         setParkingSpots([])
       }
       
@@ -219,6 +229,42 @@ export default function ParkingMapPage() {
     }
   }
 
+  // Filtrer parkeringsplasser basert på kartets bounds
+  const filterSpotsByBounds = (spots: ParkingSpot[], bounds: { north: number; south: number; east: number; west: number }) => {
+    return spots.filter(spot => {
+      if (!spot.latitude || !spot.longitude) return false
+      
+      // Sjekk om spot er innenfor bounds
+      return (
+        spot.latitude >= bounds.south &&
+        spot.latitude <= bounds.north &&
+        spot.longitude >= bounds.west &&
+        spot.longitude <= bounds.east
+      )
+    })
+  }
+
+  // Håndter bounds-endringer fra kartet
+  const handleBoundsChange = useCallback((bounds: { north: number; south: number; east: number; west: number }) => {
+    console.log("🟦 Map bounds changed:", bounds)
+    setMapBounds(bounds)
+    
+    // Filtrer alle parkeringsplasser basert på nye bounds (hvis vi har data)
+    if (allParkingSpotsRef.current.length > 0) {
+      const filtered = filterSpotsByBounds(allParkingSpotsRef.current, bounds)
+      console.log("🟦 Filtered spots:", filtered.length, "out of", allParkingSpotsRef.current.length)
+      setParkingSpots(filtered)
+    }
+  }, [])
+
+  // Oppdater listen når bounds endres
+  useEffect(() => {
+    if (mapBounds && allParkingSpotsRef.current.length > 0) {
+      const filtered = filterSpotsByBounds(allParkingSpotsRef.current, mapBounds)
+      setParkingSpots(filtered)
+    }
+  }, [mapBounds])
+
   if (!session || session.user.userType !== "LEIETAKER") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -272,6 +318,7 @@ export default function ParkingMapPage() {
                 parkingSpots={parkingSpots}
                 userLocation={userLocation}
                 onMarkerClick={handleMarkerClick}
+                onBoundsChange={handleBoundsChange}
               />
             )}
           </div>
@@ -279,7 +326,10 @@ export default function ParkingMapPage() {
           {/* Områdeliste */}
           <div className="space-y-4">
             <div className="bg-white shadow-lg rounded-xl p-4 border border-gray-100">
-              <h2 className="text-lg font-semibold mb-4">Velg område</h2>
+              <h2 className="text-lg font-semibold mb-2">Parkeringsplasser</h2>
+              <p className="text-xs text-gray-500 mb-4">
+                Viser {parkingSpots.length} {parkingSpots.length === 1 ? 'plass' : 'plasser'} synlig på kartet
+              </p>
               <p className="text-sm text-gray-600 mb-4">
                 Valg av rett område er på eget ansvar
               </p>
@@ -302,16 +352,10 @@ export default function ParkingMapPage() {
                 </div>
               ) : parkingSpots.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-600">Ingen områder funnet</p>
+                  <p className="text-sm text-gray-600">Ingen parkeringsplasser synlig</p>
                   <p className="text-xs text-gray-500 mt-2">
-                    Flytt pin i kartet eller søk på adresse
+                    Zoom ut eller flytt kartet for å se flere plasser
                   </p>
-                  <button
-                    onClick={() => fetchParkingSpots()}
-                    className="mt-4 text-xs text-blue-600 hover:underline"
-                  >
-                    Last inn på nytt
-                  </button>
                 </div>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">

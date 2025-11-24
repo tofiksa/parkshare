@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 const mapSearchSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
-  radius: z.number().optional().default(10), // Default 10 km (økt fra 5)
+  radius: z.number().optional().default(1), // Default 1 km
 })
 
 export async function GET(request: Request) {
@@ -47,7 +47,7 @@ export async function GET(request: Request) {
     const query = {
       latitude: parseFloat(latitude),
       longitude: parseFloat(longitude),
-      radius: radius ? parseFloat(radius) : 10, // Default 10 km
+      radius: radius ? parseFloat(radius) : 1, // Default 1 km
     }
 
     console.log("Query params:", query)
