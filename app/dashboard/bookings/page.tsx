@@ -241,8 +241,8 @@ export default function BookingsPage() {
                           -{" "}
                           {booking.endTime 
                             ? new Date(booking.endTime).toLocaleTimeString("no-NO", {
-                                hour: "2-digit",
-                                minute: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
                               })
                             : "Pågår"}
                         </div>

@@ -60,7 +60,7 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
 
     const map = mapRef.current
 
-    // Oppdater zoom-nivå
+    // Oppdater zoom-nivå - hent alltid fra kartet for å sikre korrekt verdi
     const currentZoom = map.getZoom()
     zoomLevelRef.current = currentZoom
 
@@ -105,11 +105,13 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
     }
 
     // Bestem om vi skal vise rektangler eller markører basert på zoom-nivå
-    // Zoom >= 12: vis rektangler, zoom < 12: vis markører (senket for enklere testing)
-    const showRectangles = zoomLevelRef.current >= 12
+    // Zoom >= 15: vis rektangler (når brukeren er nok zoomet inn til å se individuelle plasser)
+    // Zoom < 15: vis markører (P-ikoner for oversikt)
+    // Bruk currentZoom direkte i stedet for ref for å sikre korrekt verdi
+    const showRectangles = currentZoom >= 15
     
     // Debug logging
-    console.log("🗺️ Map render - Zoom:", zoomLevelRef.current, "Show rectangles:", showRectangles, "Max zoom:", map.getMaxZoom())
+    console.log("🗺️ Map render - Zoom:", currentZoom, "Show rectangles:", showRectangles, "Max zoom:", map.getMaxZoom())
     console.log("🗺️ Parking spots count:", parkingSpots.length)
     if (parkingSpots.length > 0) {
       const firstSpot = parkingSpots[0]
@@ -244,8 +246,10 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
           console.warn(`⚠️ Spot ${spot.id} mangler rektangel-data:`, {
             hasRectCoords: !!(spot.rectNorthLat && spot.rectSouthLat && spot.rectEastLng && spot.rectWestLng),
             hasRectSize: !!(spot.rectWidthMeters && spot.rectHeightMeters),
-            zoom: zoomLevelRef.current,
+            zoom: currentZoom,
           })
+        } else {
+          console.log(`📍 Tegner P-ikon for spot ${spot.id} (zoom ${currentZoom} < 15)`)
         }
         const iconColor = spot.type === "UTENDORS" ? "#10b981" : "#3b82f6"
         const customIcon = L.divIcon({
@@ -291,19 +295,28 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
     // Lytte på zoom og pan endringer
     const handleZoomChange = () => {
       const newZoom = map.getZoom()
-      console.log("🔍 Zoom changed to:", newZoom, "Will show rectangles:", newZoom >= 12)
+      console.log("🔍 Zoom changed to:", newZoom, "Will show rectangles:", newZoom >= 15)
       zoomLevelRef.current = newZoom
       updateBounds()
       // Force re-render for å bytte mellom rektangler og markører
+      // Dette vil trigge useEffect på nytt med riktig zoom-nivå
       setRenderKey(prev => prev + 1)
     }
 
+    // Lytte på zoomstart også for raskere respons
+    const handleZoomStart = () => {
+      const newZoom = map.getZoom()
+      zoomLevelRef.current = newZoom
+    }
+
     map.on("moveend", updateBounds)
+    map.on("zoomstart", handleZoomStart)
     map.on("zoomend", handleZoomChange)
 
     // Cleanup
     return () => {
       map.off("moveend", updateBounds)
+      map.off("zoomstart", handleZoomStart)
       map.off("zoomend", handleZoomChange)
     }
   }, [parkingSpots, userLocation, onMarkerClick, onBoundsChange, renderKey])

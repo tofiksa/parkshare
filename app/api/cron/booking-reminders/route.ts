@@ -52,18 +52,18 @@ export async function GET(request: Request) {
         try {
           // For ADVANCE bookinger skal endTime alltid være satt
           if (booking.endTime) {
-            await sendEmail({
-              to: booking.user.email,
-              ...getBookingReminderEmail(booking.user.name, {
-                address: booking.parkingSpot.address,
-                startTime: booking.startTime.toISOString(),
-                endTime: booking.endTime.toISOString(),
-                type: booking.parkingSpot.type,
-                qrCode: booking.qrCode,
-                latitude: booking.parkingSpot.latitude,
-                longitude: booking.parkingSpot.longitude,
-              }),
-            })
+          await sendEmail({
+            to: booking.user.email,
+            ...getBookingReminderEmail(booking.user.name, {
+              address: booking.parkingSpot.address,
+              startTime: booking.startTime.toISOString(),
+              endTime: booking.endTime.toISOString(),
+              type: booking.parkingSpot.type,
+              qrCode: booking.qrCode,
+              latitude: booking.parkingSpot.latitude,
+              longitude: booking.parkingSpot.longitude,
+            }),
+          })
           }
           return { bookingId: booking.id, success: true }
         } catch (error) {

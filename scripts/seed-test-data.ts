@@ -36,7 +36,7 @@ async function main() {
 
   // Oslo sentrum koordinater (ca.)
   const osloCenter = { lat: 59.9139, lng: 10.7522 }
-  
+
   // Trondheim sentrum koordinater (ca.)
   const trondheimCenter = { lat: 63.4305, lng: 10.3951 }
 

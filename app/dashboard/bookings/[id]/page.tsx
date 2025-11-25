@@ -242,19 +242,19 @@ export default function BookingDetailPage() {
                   <h3 className="text-sm font-medium text-gray-700 mb-1">Sluttid</h3>
                   {booking.endTime ? (
                     <>
-                      <p className="text-gray-900">
-                        {new Date(booking.endTime).toLocaleDateString("no-NO", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                      <p className="text-gray-900">
-                        {new Date(booking.endTime).toLocaleTimeString("no-NO", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
+                  <p className="text-gray-900">
+                    {new Date(booking.endTime).toLocaleDateString("no-NO", {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
+                  <p className="text-gray-900">
+                    {new Date(booking.endTime).toLocaleTimeString("no-NO", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
                     </>
                   ) : (
                     <p className="text-gray-900">Pågår (ingen sluttid satt)</p>
