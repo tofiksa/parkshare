@@ -40,6 +40,27 @@ async function main() {
   // Trondheim sentrum koordinater (ca.)
   const trondheimCenter = { lat: 63.4305, lng: 10.3951 }
 
+  // Hjelpefunksjon for å beregne rektangel-koordinater fra senter og størrelse
+  const calculateRectBounds = (
+    centerLat: number,
+    centerLng: number,
+    widthMeters: number,
+    heightMeters: number
+  ) => {
+    // Omtrentlig konvertering: 1 grad lat ≈ 111 km, 1 grad lng ≈ 111 km * cos(lat)
+    const latOffset = heightMeters / 111000 / 2
+    const lngOffset = widthMeters / (111000 * Math.cos(centerLat * Math.PI / 180)) / 2
+    
+    return {
+      rectNorthLat: centerLat + latOffset,
+      rectSouthLat: centerLat - latOffset,
+      rectEastLng: centerLng + lngOffset,
+      rectWestLng: centerLng - lngOffset,
+      rectWidthMeters: widthMeters,
+      rectHeightMeters: heightMeters,
+    }
+  }
+
   // Opprett parkeringsplasser med varierende konfigurasjoner
   const parkingSpots = [
     // Utendørs plasser med ON_DEMAND støtte
@@ -340,6 +361,31 @@ async function main() {
       return null
     }
 
+    // Beregn rektangel-koordinater hvis vi har koordinater
+    let rectData: {
+      rectNorthLat?: number | null
+      rectSouthLat?: number | null
+      rectEastLng?: number | null
+      rectWestLng?: number | null
+      rectWidthMeters?: number | null
+      rectHeightMeters?: number | null
+    } = {}
+
+    if (spot.latitude !== null && spot.longitude !== null) {
+      // Variabel størrelse basert på parkeringsplass-type og indeks
+      // Utendørs: større (10-20 meter), Innendørs: mindre (5-10 meter)
+      const baseWidth = spot.type === "UTENDORS" ? 15 + (i % 5) * 2 : 8 + (i % 3)
+      const baseHeight = spot.type === "UTENDORS" ? 12 + (i % 4) * 2 : 6 + (i % 2)
+      
+      const rectBounds = calculateRectBounds(
+        spot.latitude,
+        spot.longitude,
+        baseWidth,
+        baseHeight
+      )
+      rectData = rectBounds
+    }
+
     const created = await prisma.parkingSpot.create({
       data: {
         userId: landlord.id,
@@ -359,6 +405,7 @@ async function main() {
         zoneNumber: getZoneNumber(),
         zoneName: getZoneName(),
         operator: spot.operator ?? "Parkshare Test AS",
+        ...rectData,
       },
     })
     createdSpots.push(created)

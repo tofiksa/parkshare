@@ -58,7 +58,9 @@ export async function GET(request: Request) {
     console.log("Fetching parking spots from database...")
     let parkingSpots
     try {
-      parkingSpots = await prisma.parkingSpot.findMany({
+      // Hent alle felter inkludert rektangelfeltene
+      // Bruk raw query eller include for å få alle felter
+      parkingSpots = await (prisma.parkingSpot.findMany({
         where: {
           isActive: true,
           supportsOnDemandBooking: true,
@@ -72,10 +74,23 @@ export async function GET(request: Request) {
             },
           },
         },
-      })
+      }) as Promise<any[]>)
     } catch (prismaError) {
       console.error("Prisma error fetching parking spots:", prismaError)
       throw prismaError
+    }
+    
+    // Debug: sjekk om rektangeldata er med i første spot
+    if (parkingSpots.length > 0) {
+      const firstSpot = parkingSpots[0] as any
+      console.log("🔍 API - First spot rect data from DB:", {
+        id: firstSpot.id,
+        address: firstSpot.address,
+        hasRectCoords: !!(firstSpot.rectNorthLat && firstSpot.rectSouthLat && firstSpot.rectEastLng && firstSpot.rectWestLng),
+        hasRectSize: !!(firstSpot.rectWidthMeters && firstSpot.rectHeightMeters),
+        rectNorthLat: firstSpot.rectNorthLat,
+        rectSouthLat: firstSpot.rectSouthLat,
+      })
     }
 
     // Beregn avstand for alle plasser og sorter etter avstand
@@ -129,8 +144,8 @@ export async function GET(request: Request) {
     console.log("Processing", parkingSpots.length, "parking spots")
     console.log("Booked spot IDs:", Array.from(bookedSpotIds))
     
-    const spotsWithDistance = parkingSpots
-      .filter((spot) => {
+    const spotsWithDistance = (parkingSpots as any[])
+      .filter((spot: any) => {
         // Sjekk at spot ikke er booket og har gyldige koordinater
         const isBooked = bookedSpotIds.has(spot.id)
         const hasValidCoords = spot.latitude !== null && 
@@ -142,7 +157,7 @@ export async function GET(request: Request) {
         
         return !isBooked && hasValidCoords
       })
-      .map((spot) => {
+      .map((spot: any) => {
         // Sjekk at koordinatene er gyldige før beregning
         if (!spot.latitude || !spot.longitude) {
           console.warn("Spot", spot.id, "missing coordinates in map function")
@@ -170,6 +185,13 @@ export async function GET(request: Request) {
           type: spot.type,
           isAvailable: true,
           distance, // Legg til avstand i response
+          // Rektangel-koordinater (nå eksplisitt valgt i select)
+          rectNorthLat: spot.rectNorthLat ?? null,
+          rectSouthLat: spot.rectSouthLat ?? null,
+          rectEastLng: spot.rectEastLng ?? null,
+          rectWestLng: spot.rectWestLng ?? null,
+          rectWidthMeters: spot.rectWidthMeters ?? null,
+          rectHeightMeters: spot.rectHeightMeters ?? null,
         }
         } catch (calcError) {
           console.error("Error calculating distance for spot", spot.id, ":", calcError)
@@ -180,6 +202,21 @@ export async function GET(request: Request) {
       .sort((a, b) => a.distance - b.distance) // Sorter etter avstand (nærmest først)
 
     console.log("Formatted spots with distance:", spotsWithDistance.length)
+    
+    // Debug: sjekk om rektangel-data er med
+    if (spotsWithDistance.length > 0) {
+      const firstSpot = spotsWithDistance[0]
+      console.log("🔍 First spot rect data:", {
+        id: firstSpot.id,
+        hasRectCoords: !!(firstSpot.rectNorthLat && firstSpot.rectSouthLat && firstSpot.rectEastLng && firstSpot.rectWestLng),
+        hasRectSize: !!(firstSpot.rectWidthMeters && firstSpot.rectHeightMeters),
+        rectNorthLat: firstSpot.rectNorthLat,
+        rectSouthLat: firstSpot.rectSouthLat,
+        rectWidthMeters: firstSpot.rectWidthMeters,
+        rectHeightMeters: firstSpot.rectHeightMeters,
+      })
+    }
+    
     console.log("Returning response with", spotsWithDistance.length, "parking spots")
     
     // Returner alle plasser sortert etter avstand (ikke filtrert etter radius)

@@ -50,6 +50,13 @@ model ParkingSpot {
   zoneNumber              String?
   zoneName                String?
   operator                String?
+  // Rektangel-koordinater for kartvisning
+  rectNorthLat            Float?      // Nordlig breddegrad
+  rectSouthLat            Float?      // Sørlig breddegrad
+  rectEastLng             Float?      // Østlig lengdegrad
+  rectWestLng             Float?      // Vestlig lengdegrad
+  rectWidthMeters         Float?      // Bredde i meter
+  rectHeightMeters        Float?      // Høyde i meter
   createdAt               DateTime    @default(now())
   updatedAt               DateTime    @updatedAt
   bookings                Booking[]

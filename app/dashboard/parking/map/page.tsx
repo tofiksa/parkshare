@@ -25,6 +25,13 @@ interface ParkingSpot {
   operator: string | null
   type: "UTENDORS" | "INNENDORS"
   distance?: number // Avstand i km
+  // Rektangel-koordinater
+  rectNorthLat?: number | null
+  rectSouthLat?: number | null
+  rectEastLng?: number | null
+  rectWestLng?: number | null
+  rectWidthMeters?: number | null
+  rectHeightMeters?: number | null
 }
 
 export default function ParkingMapPage() {
@@ -58,7 +65,7 @@ export default function ParkingMapPage() {
     const previousController = abortControllerRef.current
     
     // Kun kanseller hvis forrige request ikke har returnert data ennå
-    if (previousController && !previousController.signal.aborted && parkingSpotsRef.current.length === 0) {
+    if (previousController && !previousController.signal.aborted && allParkingSpotsRef.current.length === 0) {
       previousController.abort()
     }
     
@@ -101,6 +108,23 @@ export default function ParkingMapPage() {
         
         // Debug logging
         console.log("Fetched parking spots:", spots.length, "spots:", spots)
+        
+        // Debug: sjekk rektangel-data i første spot
+        if (spots.length > 0) {
+          const firstSpot = spots[0]
+          console.log("🔍 Frontend - First spot rect data:", {
+            id: firstSpot.id,
+            address: firstSpot.address,
+            hasRectCoords: !!(firstSpot.rectNorthLat && firstSpot.rectSouthLat && firstSpot.rectEastLng && firstSpot.rectWestLng),
+            hasRectSize: !!(firstSpot.rectWidthMeters && firstSpot.rectHeightMeters),
+            rectNorthLat: firstSpot.rectNorthLat,
+            rectSouthLat: firstSpot.rectSouthLat,
+            rectEastLng: firstSpot.rectEastLng,
+            rectWestLng: firstSpot.rectWestLng,
+            rectWidthMeters: firstSpot.rectWidthMeters,
+            rectHeightMeters: firstSpot.rectHeightMeters,
+          })
+        }
         
         // Lagre alle parkeringsplasser i ref (alle fra API, ikke filtrert)
         allParkingSpotsRef.current = spots
@@ -326,7 +350,7 @@ export default function ParkingMapPage() {
           {/* Områdeliste */}
           <div className="space-y-4">
             <div className="bg-white shadow-lg rounded-xl p-4 border border-gray-100">
-              <h2 className="text-lg font-semibold mb-2">Parkeringsplasser</h2>
+              <h2 className="text-lg font-semibold mb-2 text-gray-900">Parkeringsplasser</h2>
               <p className="text-xs text-gray-500 mb-4">
                 Viser {parkingSpots.length} {parkingSpots.length === 1 ? 'plass' : 'plasser'} synlig på kartet
               </p>
