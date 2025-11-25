@@ -58,23 +58,7 @@ export async function POST(request: Request) {
     //   }
     // }
 
-    // Sjekk at ingen aktiv parkering
-    const activeBooking = await prisma.booking.findFirst({
-      where: {
-        userId: session.user.id,
-        status: "STARTED",
-        bookingType: "ON_DEMAND",
-      },
-    })
-
-    if (activeBooking) {
-      return NextResponse.json(
-        { error: "Du har allerede en aktiv parkering" },
-        { status: 400 }
-      )
-    }
-
-    // Sjekk at plassen er tilgjengelig
+    // Sjekk at plassen er tilgjengelig (leietakere kan ha flere aktive parkeringer)
     const conflictingBooking = await prisma.booking.findFirst({
       where: {
         parkingSpotId: validatedData.parkingSpotId,

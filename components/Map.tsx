@@ -251,10 +251,11 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
         } else {
           console.log(`📍 Tegner P-ikon for spot ${spot.id} (zoom ${currentZoom} < 15)`)
         }
-        const iconColor = spot.type === "UTENDORS" ? "#10b981" : "#3b82f6"
+        // Bruk samme gradient og font som logoen (from-blue-600 to-green-600)
+        // blue-600 = #2563eb, green-600 = #16a34a
         const customIcon = L.divIcon({
           className: "parking-marker",
-          html: `<div style="width: 30px; height: 30px; border-radius: 50%; background: ${iconColor}; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">P</div>`,
+          html: `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(to bottom right, #2563eb, #16a34a); border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">P</div>`,
           iconSize: [30, 30],
           iconAnchor: [15, 15],
         })

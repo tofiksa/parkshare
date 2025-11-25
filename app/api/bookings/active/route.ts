@@ -14,8 +14,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Hent aktiv ON_DEMAND booking
-    const booking = await prisma.booking.findFirst({
+    // Hent alle aktive ON_DEMAND bookinger (leietakere kan ha flere aktive parkeringer)
+    const bookings = await prisma.booking.findMany({
       where: {
         userId: session.user.id,
         status: "STARTED",
@@ -33,38 +33,45 @@ export async function GET(request: Request) {
           },
         },
       },
+      orderBy: {
+        actualStartTime: "desc", // Nyeste først
+      },
     })
 
-    if (!booking) {
-      return NextResponse.json(null)
+    if (bookings.length === 0) {
+      return NextResponse.json([])
     }
 
-    // Beregn varighet og estimert pris
-    const startTime = booking.actualStartTime || booking.startTime
+    // Beregn varighet og estimert pris for hver booking
     const now = new Date()
-    const durationMs = now.getTime() - startTime.getTime()
-    const durationMinutes = Math.ceil(durationMs / (1000 * 60))
+    const bookingsWithDetails = bookings.map((booking) => {
+      const startTime = booking.actualStartTime || booking.startTime
+      const durationMs = now.getTime() - startTime.getTime()
+      const durationMinutes = Math.ceil(durationMs / (1000 * 60))
 
-    // Beregn pricePerMinute hvis ikke satt
-    const pricePerMinute = booking.parkingSpot.pricePerMinute || 
-      (booking.parkingSpot.pricePerHour / 60)
+      // Beregn pricePerMinute hvis ikke satt
+      const pricePerMinute = booking.parkingSpot.pricePerMinute || 
+        (booking.parkingSpot.pricePerHour / 60)
 
-    const estimatedPrice = calculateEstimatedPrice(pricePerMinute, startTime)
+      const estimatedPrice = calculateEstimatedPrice(pricePerMinute, startTime)
 
-    return NextResponse.json({
-      id: booking.id,
-      status: booking.status,
-      actualStartTime: booking.actualStartTime || booking.startTime,
-      durationMinutes,
-      remainingMinutes: null, // For ON_DEMAND er dette null (ingen maks)
-      estimatedPrice,
-      parkingSpot: booking.parkingSpot,
-      vehiclePlate: booking.vehiclePlate,
+      return {
+        id: booking.id,
+        status: booking.status,
+        actualStartTime: booking.actualStartTime || booking.startTime,
+        durationMinutes,
+        remainingMinutes: null, // For ON_DEMAND er dette null (ingen maks)
+        estimatedPrice,
+        parkingSpot: booking.parkingSpot,
+        vehiclePlate: booking.vehiclePlate,
+      }
     })
+
+    return NextResponse.json(bookingsWithDetails)
   } catch (error) {
-    console.error("Error fetching active booking:", error)
+    console.error("Error fetching active bookings:", error)
     return NextResponse.json(
-      { error: "Kunne ikke hente aktiv parkering" },
+      { error: "Kunne ikke hente aktive parkeringer" },
       { status: 500 }
     )
   }
