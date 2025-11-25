@@ -37,6 +37,7 @@ export default function ActiveParkingPage() {
     const interval = setInterval(fetchActiveBookings, 1000) // Oppdater hvert sekund
 
     return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchActiveBookings = async () => {
@@ -208,7 +209,7 @@ export default function ActiveParkingPage() {
                 </button>
 
                 <p className="text-xs text-center text-gray-500 mt-4">
-                  Parkeringen stoppes når du trykker på "Stopp parkering"
+                  Parkeringen stoppes når du trykker på &quot;Stopp parkering&quot;
                 </p>
               </div>
             )

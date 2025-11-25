@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -15,7 +15,7 @@ interface ParkingSpot {
   pricePerMinute: number
 }
 
-export default function ConfirmParkingPage() {
+function ConfirmParkingPageContent() {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -295,6 +295,24 @@ export default function ConfirmParkingPage() {
         </div>
       </main>
     </div>
+  )
+}
+
+export default function ConfirmParkingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <Navigation />
+        <main className="max-w-2xl mx-auto py-16 px-4">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-gray-600">Laster...</p>
+          </div>
+        </main>
+      </div>
+    }>
+      <ConfirmParkingPageContent />
+    </Suspense>
   )
 }
 

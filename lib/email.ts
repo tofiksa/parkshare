@@ -1,6 +1,14 @@
 import { Resend } from "resend"
 
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy initialization to avoid build-time errors when API key is not set
+let resend: Resend | null = null
+
+function getResend() {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resend
+}
 
 export interface EmailOptions {
   to: string
@@ -21,7 +29,12 @@ export async function sendEmail({ to, subject, html, text }: EmailOptions) {
 
     const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev"
     
-    const { data, error } = await resend.emails.send({
+    const resendInstance = getResend()
+    if (!resendInstance) {
+      return { success: false, error: "RESEND_API_KEY ikke konfigurert" }
+    }
+    
+    const { data, error } = await resendInstance.emails.send({
       from: fromEmail,
       to,
       subject,
