@@ -25,31 +25,62 @@ interface ParkingSpot {
   operator: string | null
   type: "UTENDORS" | "INNENDORS"
   distance?: number // Avstand i km
-  // Rektangel-koordinater
+  // Rektangel-koordinater (for bakoverkompatibilitet)
   rectNorthLat?: number | null
   rectSouthLat?: number | null
   rectEastLng?: number | null
   rectWestLng?: number | null
   rectWidthMeters?: number | null
   rectHeightMeters?: number | null
+  // Polygon-koordinater for roterte rektangler
+  rectCorner1Lat?: number | null
+  rectCorner1Lng?: number | null
+  rectCorner2Lat?: number | null
+  rectCorner2Lng?: number | null
+  rectCorner3Lat?: number | null
+  rectCorner3Lng?: number | null
+  rectCorner4Lat?: number | null
+  rectCorner4Lng?: number | null
 }
 
 export default function ParkingMapPage() {
   console.log("🟡 ParkingMapPage component rendered")
   
-  const { data: session } = useSession()
+  const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   
-  console.log("🟡 Component state - loading:", loading, "parkingSpots:", parkingSpots.length, "error:", error)
+  console.log("🟡 Component state - loading:", loading, "parkingSpots:", parkingSpots.length, "error:", error, "sessionStatus:", sessionStatus)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const allParkingSpotsRef = useRef<ParkingSpot[]>([]) // Ref for å holde ALLE parkeringsplasser fra API
   const hasSearchedRef = useRef(false) // Track om vi har søkt
   const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null)
+  const mapBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null)
+  const spotListRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({}) // Refs for liste-elementer
+
+  // Oppdater ref når mapBounds endres
+  useEffect(() => {
+    mapBoundsRef.current = mapBounds
+  }, [mapBounds])
+
+  // Filtrer parkeringsplasser basert på kartets bounds
+  const filterSpotsByBounds = useCallback((spots: ParkingSpot[], bounds: { north: number; south: number; east: number; west: number }) => {
+    return spots.filter(spot => {
+      if (!spot.latitude || !spot.longitude) return false
+      
+      // Sjekk om spot er innenfor bounds
+      return (
+        spot.latitude >= bounds.south &&
+        spot.latitude <= bounds.north &&
+        spot.longitude >= bounds.west &&
+        spot.longitude <= bounds.east
+      )
+    })
+  }, [])
 
   const fetchParkingSpots = useCallback(async () => {
     // Hvis ingen userLocation, bruk Oslo sentrum som fallback
@@ -129,9 +160,10 @@ export default function ParkingMapPage() {
         // Lagre alle parkeringsplasser i ref (alle fra API, ikke filtrert)
         allParkingSpotsRef.current = spots
         
-        // Filtrer basert på kartets bounds hvis de er satt
-        if (mapBounds) {
-          const filteredSpots = filterSpotsByBounds(spots, mapBounds)
+        // Filtrer basert på kartets bounds hvis de er satt (bruk ref for å unngå dependency issues)
+        const currentBounds = mapBoundsRef.current
+        if (currentBounds) {
+          const filteredSpots = filterSpotsByBounds(spots, currentBounds)
           setParkingSpots(filteredSpots)
         } else {
           // Hvis ingen bounds ennå, vis alle (vil bli filtrert når kartet laster)
@@ -171,8 +203,7 @@ export default function ParkingMapPage() {
       
       // Ikke prøv igjen automatisk - la brukeren trykke "Prøv igjen"
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Fjern userLocation dependency - vi henter den direkte fra state i funksjonen
+  }, [userLocation, filterSpotsByBounds]) // Inkluder filterSpotsByBounds
 
   const getCurrentLocation = useCallback(() => {
     if (navigator.geolocation) {
@@ -200,9 +231,23 @@ export default function ParkingMapPage() {
   // Hent parkeringsplasser når session er klar (kun en gang)
   useEffect(() => {
     console.log("🔵 useEffect triggered")
+    console.log("🔵 Session status:", sessionStatus)
     console.log("🔵 Session:", session ? "exists" : "null")
     console.log("🔵 User type:", session?.user?.userType)
     console.log("🔵 Has searched:", hasSearchedRef.current)
+    
+    // Vent til session er lastet (ikke "loading")
+    if (sessionStatus === "loading") {
+      console.log("⏳ Waiting for session to load...")
+      return
+    }
+    
+    // Hvis session er lastet men ikke autentisert, eller ikke leietaker
+    if (sessionStatus === "unauthenticated" || !session) {
+      console.log("🔴 No session or unauthenticated")
+      setLoading(false)
+      return
+    }
     
     if (session && session.user.userType === "LEIETAKER" && !hasSearchedRef.current) {
       // Sett flagg med en gang for å unngå flere kall
@@ -214,16 +259,22 @@ export default function ParkingMapPage() {
       // Hvis userLocation ikke er satt, bruker vi Oslo sentrum som fallback
       // KALL DIREKTE - ikke bruk timer som kan bli kansellert
       console.log("🟢 Calling fetchParkingSpots directly")
-      fetchParkingSpots()
+      fetchParkingSpots().catch((err) => {
+        console.error("Failed to fetch parking spots:", err)
+        setLoading(false)
+      })
     } else {
       console.log("🔴 useEffect: Conditions not met", {
         hasSession: !!session,
         isLeietaker: session?.user?.userType === "LEIETAKER",
         hasSearched: hasSearchedRef.current
       })
+      // Hvis vi ikke skal hente data, sett loading til false
+      if (hasSearchedRef.current || (session && session.user.userType !== "LEIETAKER")) {
+        setLoading(false)
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]) // Kun kjøre når session er klar - fetchParkingSpots er stabil
+  }, [session, sessionStatus, fetchParkingSpots]) // Inkluder fetchParkingSpots i dependencies
 
   useEffect(() => {
     if (session && session.user.userType === "LEIETAKER") {
@@ -244,6 +295,13 @@ export default function ParkingMapPage() {
     const spot = parkingSpots.find((s) => s.id === spotId)
     if (spot) {
       setSelectedSpot(spot)
+      // Scroll til valgt element i listen
+      setTimeout(() => {
+        const element = spotListRefs.current[spotId]
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "nearest" })
+        }
+      }, 100)
     }
   }
 
@@ -251,21 +309,6 @@ export default function ParkingMapPage() {
     if (selectedSpot) {
       router.push(`/dashboard/parking/confirm?spotId=${selectedSpot.id}`)
     }
-  }
-
-  // Filtrer parkeringsplasser basert på kartets bounds
-  const filterSpotsByBounds = (spots: ParkingSpot[], bounds: { north: number; south: number; east: number; west: number }) => {
-    return spots.filter(spot => {
-      if (!spot.latitude || !spot.longitude) return false
-      
-      // Sjekk om spot er innenfor bounds
-      return (
-        spot.latitude >= bounds.south &&
-        spot.latitude <= bounds.north &&
-        spot.longitude >= bounds.west &&
-        spot.longitude <= bounds.east
-      )
-    })
   }
 
   // Håndter bounds-endringer fra kartet
@@ -288,6 +331,35 @@ export default function ParkingMapPage() {
       setParkingSpots(filtered)
     }
   }, [mapBounds])
+
+  // Scroll til valgt element når selectedSpot endres
+  useEffect(() => {
+    if (selectedSpot) {
+      setTimeout(() => {
+        const element = spotListRefs.current[selectedSpot.id]
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth", block: "nearest" })
+        }
+      }, 100)
+    }
+  }, [selectedSpot])
+
+  // Vis loading mens session lastes
+  if (sessionStatus === "loading") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+        <Navigation />
+        <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+              <p className="text-gray-600">Laster...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   if (!session || session.user.userType !== "LEIETAKER") {
     return (
@@ -343,6 +415,7 @@ export default function ParkingMapPage() {
                 userLocation={userLocation}
                 onMarkerClick={handleMarkerClick}
                 onBoundsChange={handleBoundsChange}
+                selectedSpotId={selectedSpot?.id || null}
               />
             )}
           </div>
@@ -386,10 +459,22 @@ export default function ParkingMapPage() {
                   {parkingSpots.map((spot) => (
                     <button
                       key={spot.id}
-                      onClick={() => setSelectedSpot(spot)}
+                      ref={(el) => {
+                        spotListRefs.current[spot.id] = el
+                      }}
+                      onClick={() => {
+                        setSelectedSpot(spot)
+                        // Scroll til valgt element
+                        setTimeout(() => {
+                          const element = spotListRefs.current[spot.id]
+                          if (element) {
+                            element.scrollIntoView({ behavior: "smooth", block: "nearest" })
+                          }
+                        }, 100)
+                      }}
                       className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                         selectedSpot?.id === spot.id
-                          ? "border-purple-500 bg-purple-50"
+                          ? "border-red-500 bg-red-50"
                           : "border-gray-200 hover:border-gray-300"
                       }`}
                     >

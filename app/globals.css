@@ -58,3 +58,13 @@ html {
   background: #555;
 }
 
+/* Fjern skygge fra brukerens posisjonsmarkør */
+.user-location-marker {
+  box-shadow: none !important;
+}
+
+.user-location-marker img,
+.user-location-marker div {
+  box-shadow: none !important;
+}
+

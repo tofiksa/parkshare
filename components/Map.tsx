@@ -15,13 +15,22 @@ interface ParkingSpot {
   zoneNumber?: string | null
   zoneName?: string | null
   operator?: string | null
-  // Rektangel-koordinater
+  // Rektangel-koordinater (for bakoverkompatibilitet)
   rectNorthLat?: number | null
   rectSouthLat?: number | null
   rectEastLng?: number | null
   rectWestLng?: number | null
   rectWidthMeters?: number | null
   rectHeightMeters?: number | null
+  // Polygon-koordinater for roterte rektangler (fire hjørnepunkter)
+  rectCorner1Lat?: number | null
+  rectCorner1Lng?: number | null
+  rectCorner2Lat?: number | null
+  rectCorner2Lng?: number | null
+  rectCorner3Lat?: number | null
+  rectCorner3Lng?: number | null
+  rectCorner4Lat?: number | null
+  rectCorner4Lng?: number | null
 }
 
 interface MapProps {
@@ -29,13 +38,22 @@ interface MapProps {
   userLocation: { lat: number; lng: number } | null
   onMarkerClick: (spotId: string) => void
   onBoundsChange?: (bounds: { north: number; south: number; east: number; west: number }) => void
+  selectedSpotId?: string | null // ID for valgt parkeringsplass
 }
 
-export default function Map({ parkingSpots, userLocation, onMarkerClick, onBoundsChange }: MapProps) {
+export default function Map({ 
+  parkingSpots = [], 
+  userLocation = null, 
+  onMarkerClick, 
+  onBoundsChange, 
+  selectedSpotId = null 
+}: MapProps) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markersRef = useRef<L.Marker[]>([])
-  const rectanglesRef = useRef<L.Rectangle[]>([])
+  const markersMapRef = useRef<{ [key: string]: L.Marker }>({}) // Objekt for å holde markører per ID
+  const rectanglesRef = useRef<(L.Rectangle | L.Polygon)[]>([])
+  const rectanglesMapRef = useRef<{ [key: string]: L.Rectangle | L.Polygon }>({}) // Objekt for å holde rektangler per ID
   const zoomLevelRef = useRef<number>(15)
   const [renderKey, setRenderKey] = useState(0)
 
@@ -78,27 +96,51 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
       }
     }
 
-    // Clear existing markers and rectangles
-    markersRef.current.forEach(marker => {
-      map.removeLayer(marker)
-    })
-    markersRef.current = []
+    // Clear existing markers and rectangles (kun hvis parkingSpots har endret seg)
+    // Vi beholder eksisterende markører og oppdaterer dem i stedet for å lage nye
+    const existingMarkerIds = Object.keys(markersMapRef.current)
+    const currentSpotIds = new Set(parkingSpots.map(s => s.id))
     
-    rectanglesRef.current.forEach(rect => {
-      map.removeLayer(rect)
+    // Fjern markører som ikke lenger eksisterer
+    existingMarkerIds.forEach(id => {
+      if (!currentSpotIds.has(id)) {
+        const marker = markersMapRef.current[id]
+        if (marker) {
+          map.removeLayer(marker)
+          delete markersMapRef.current[id]
+        }
+      }
     })
-    rectanglesRef.current = []
+    
+    const existingRectIds = Object.keys(rectanglesMapRef.current)
+    // Fjern rektangler som ikke lenger eksisterer
+    existingRectIds.forEach(id => {
+      if (!currentSpotIds.has(id)) {
+        const rect = rectanglesMapRef.current[id]
+        if (rect) {
+          map.removeLayer(rect)
+          delete rectanglesMapRef.current[id]
+        }
+      }
+    })
+    
+    // Oppdater arrays for bakoverkompatibilitet
+    markersRef.current = Object.values(markersMapRef.current)
+    rectanglesRef.current = Object.values(rectanglesMapRef.current)
 
     // Add user location marker
     if (userLocation) {
       const userIcon = L.divIcon({
         className: "user-location-marker",
-        html: '<div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+        html: '<div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; border: 3px solid white; box-shadow: none !important;"></div>',
         iconSize: [20, 20],
         iconAnchor: [10, 10],
       })
 
-      const userMarker = L.marker([userLocation.lat, userLocation.lng], { icon: userIcon })
+      const userMarker = L.marker([userLocation.lat, userLocation.lng], { 
+        icon: userIcon,
+        shadowPane: undefined, // Deaktiver shadow
+      })
         .addTo(map)
         .bindPopup("Din lokasjon")
       markersRef.current.push(userMarker)
@@ -112,6 +154,29 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
     
     // Debug logging
     console.log("🗺️ Map render - Zoom:", currentZoom, "Show rectangles:", showRectangles, "Max zoom:", map.getMaxZoom())
+    
+    // Fjern markører hvis vi skal vise rektangler, og fjern rektangler hvis vi skal vise markører
+    if (showRectangles) {
+      // Fjern alle P-ikoner (markører) når vi viser rektangler
+      Object.values(markersMapRef.current).forEach(marker => {
+        if (map.hasLayer(marker)) {
+          map.removeLayer(marker)
+        }
+      })
+      // Tøm markersMapRef når vi viser rektangler
+      markersMapRef.current = {}
+      markersRef.current = []
+    } else {
+      // Fjern alle rektangler/polygoner når vi viser markører
+      Object.values(rectanglesMapRef.current).forEach(rect => {
+        if (map.hasLayer(rect)) {
+          map.removeLayer(rect)
+        }
+      })
+      // Tøm rectanglesMapRef når vi viser markører
+      rectanglesMapRef.current = {}
+      rectanglesRef.current = []
+    }
     console.log("🗺️ Parking spots count:", parkingSpots.length)
     if (parkingSpots.length > 0) {
       const firstSpot = parkingSpots[0]
@@ -159,87 +224,295 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
         ? `${spot.pricePerMinute.toFixed(2)} NOK/min`
         : `${spot.pricePerHour} NOK/time`
 
-      if (showRectangles && spot.rectNorthLat && spot.rectSouthLat && spot.rectEastLng && spot.rectWestLng) {
-        // Vis rektangel hvis vi har koordinater
-        const bounds: [[number, number], [number, number]] = [
-          [spot.rectSouthLat, spot.rectWestLng],
-          [spot.rectNorthLat, spot.rectEastLng]
-        ]
+      // Sjekk først om vi har polygon-koordinater (rotert rektangel)
+      if (showRectangles && 
+          spot.rectCorner1Lat && spot.rectCorner1Lng &&
+          spot.rectCorner2Lat && spot.rectCorner2Lng &&
+          spot.rectCorner3Lat && spot.rectCorner3Lng &&
+          spot.rectCorner4Lat && spot.rectCorner4Lng) {
+        
+        // Sjekk om polygon allerede eksisterer
+        const existingPolygon = rectanglesMapRef.current[spot.id] as L.Polygon | undefined
+        
+        if (existingPolygon) {
+          // Oppdater bare stilen, ikke lag ny
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
+          
+          existingPolygon.setStyle({
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+          })
+        } else {
+          // Lag ny polygon
+          const polygonCoords: [number, number][] = [
+            [spot.rectCorner1Lat, spot.rectCorner1Lng],
+            [spot.rectCorner2Lat, spot.rectCorner2Lng],
+            [spot.rectCorner3Lat, spot.rectCorner3Lng],
+            [spot.rectCorner4Lat, spot.rectCorner4Lng],
+            [spot.rectCorner1Lat, spot.rectCorner1Lng], // Lukk polygon
+          ]
 
-        console.log(`✅ Tegner rektangel for spot ${spot.id} (${spot.address}):`, {
-          bounds,
-          type: spot.type,
-          zoom: zoomLevelRef.current,
-          center: [spot.latitude, spot.longitude],
-        })
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
 
-        // Lett grønn farge med opacity (rgba(144, 238, 144, 0.4) = lightgreen med 40% opacity)
-        // Full rektangel skal være lettere grønn (rgba(200, 255, 200, 0.3))
-        const fillColor = spot.type === "UTENDORS" 
-          ? "rgba(200, 255, 200, 0.5)" // Lettere grønn for full - økt opacity for bedre synlighet
-          : "rgba(144, 238, 144, 0.5)"  // Lett grønn med opacity - økt opacity
-        const color = spot.type === "UTENDORS" 
-          ? "#10b981" // Mørkere grønn border for bedre synlighet
-          : "#7CB342" // Litt mørkere grønn for innendørs
+          const polygon = L.polygon(polygonCoords, {
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+            interactive: true,
+          })
+            .addTo(map)
+            // Ikke bind popup - det kan forhindre klikk
+            // .bindPopup(getPopupContent(spot))
 
-        const rectangle = L.rectangle(bounds, {
-          color: color,
-          fillColor: fillColor,
-          fillOpacity: 0.5, // Økt fra 0.3 til 0.5 for bedre synlighet
-          weight: 3, // Økt fra 2 til 3 for tykkere border
-        })
-          .addTo(map)
-          .bindPopup(getPopupContent(spot))
+          // Gjør polygon klikkbar - én klikk skal være nok
+          polygon.on("click", (e) => {
+            e.originalEvent.stopPropagation()
+            e.originalEvent.preventDefault()
+            onMarkerClick(spot.id)
+          })
+          
+          // Legg til popup på hover i stedet
+          polygon.on("mouseover", function(this: L.Polygon) {
+            if (selectedSpotId !== spot.id) {
+              this.setStyle({
+                weight: 4,
+                fillOpacity: 0.7,
+              })
+            }
+            if (map) {
+              map.getContainer().style.cursor = "pointer"
+            }
+            // Vis popup på hover
+            const popup = L.popup().setContent(getPopupContent(spot))
+            this.bindPopup(popup).openPopup()
+          })
+          
+          // Hover-effekt (allerede håndtert over)
+          
+          polygon.on("mouseout", function(this: L.Polygon) {
+            const currentIsSelected = selectedSpotId === spot.id
+            this.setStyle({
+              weight: currentIsSelected ? 4 : 3,
+              fillOpacity: currentIsSelected ? 0.6 : 0.5,
+            })
+            if (map) {
+              map.getContainer().style.cursor = ""
+            }
+          })
 
-        rectangle.on("click", () => {
-          onMarkerClick(spot.id)
-        })
+          rectanglesMapRef.current[spot.id] = polygon
+          rectanglesRef.current.push(polygon as any)
+        }
+      } else if (showRectangles && spot.rectNorthLat && spot.rectSouthLat && spot.rectEastLng && spot.rectWestLng) {
+        // Fallback: Vis rektangel hvis vi har bounds-koordinater (ikke-rotert)
+        const existingRect = rectanglesMapRef.current[spot.id] as L.Rectangle | undefined
+        
+        if (existingRect) {
+          // Oppdater bare stilen
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
+          
+          existingRect.setStyle({
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+          })
+        } else {
+          // Lag ny rektangel
+          const bounds: [[number, number], [number, number]] = [
+            [spot.rectSouthLat, spot.rectWestLng],
+            [spot.rectNorthLat, spot.rectEastLng]
+          ]
 
-        rectanglesRef.current.push(rectangle)
-        console.log(`✅ Rektangel lagt til kartet for spot ${spot.id}`)
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
+
+          const rectangle = L.rectangle(bounds, {
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+            interactive: true,
+          })
+            .addTo(map)
+            // Ikke bind popup - det kan forhindre klikk
+
+          // Gjør rektangel klikkbar - én klikk skal være nok
+          rectangle.on("click", (e) => {
+            e.originalEvent.stopPropagation()
+            e.originalEvent.preventDefault()
+            onMarkerClick(spot.id)
+          })
+          
+          // Hover-effekt med popup
+          rectangle.on("mouseover", function(this: L.Rectangle) {
+            if (selectedSpotId !== spot.id) {
+              this.setStyle({
+                weight: 4,
+                fillOpacity: 0.7,
+              })
+            }
+            if (map) {
+              map.getContainer().style.cursor = "pointer"
+            }
+            // Vis popup på hover
+            const popup = L.popup().setContent(getPopupContent(spot))
+            this.bindPopup(popup).openPopup()
+          })
+          
+          rectangle.on("mouseout", function(this: L.Rectangle) {
+            const currentIsSelected = selectedSpotId === spot.id
+            this.setStyle({
+              weight: currentIsSelected ? 4 : 3,
+              fillOpacity: currentIsSelected ? 0.6 : 0.5,
+            })
+            if (map) {
+              map.getContainer().style.cursor = ""
+            }
+          })
+
+          rectanglesMapRef.current[spot.id] = rectangle
+          rectanglesRef.current.push(rectangle)
+        }
       } else if (showRectangles && spot.rectWidthMeters && spot.rectHeightMeters) {
         // Hvis vi har størrelse men ikke koordinater, beregn fra senter
-        const bounds = calculateRectBounds(
-          spot.latitude,
-          spot.longitude,
-          spot.rectWidthMeters,
-          spot.rectHeightMeters
-        )
+        const existingRect = rectanglesMapRef.current[spot.id] as L.Rectangle | undefined
+        
+        if (existingRect) {
+          // Oppdater bare stilen
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
+          
+          existingRect.setStyle({
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+          })
+        } else {
+          // Lag ny rektangel
+          const bounds = calculateRectBounds(
+            spot.latitude,
+            spot.longitude,
+            spot.rectWidthMeters,
+            spot.rectHeightMeters
+          )
 
-        const rectBounds: [[number, number], [number, number]] = [
-          [bounds.south, bounds.west],
-          [bounds.north, bounds.east]
-        ]
+          const rectBounds: [[number, number], [number, number]] = [
+            [bounds.south, bounds.west],
+            [bounds.north, bounds.east]
+          ]
 
-        console.log(`✅ Tegner rektangel (beregnet) for spot ${spot.id}:`, {
-          bounds: rectBounds,
-          width: spot.rectWidthMeters,
-          height: spot.rectHeightMeters,
-          type: spot.type,
-        })
+          const isSelected = selectedSpotId === spot.id
+          const fillColor = isSelected
+            ? "rgba(239, 68, 68, 0.6)"
+            : spot.type === "UTENDORS" 
+              ? "rgba(200, 255, 200, 0.5)"
+              : "rgba(144, 238, 144, 0.5)"
+          const color = isSelected
+            ? "#dc2626"
+            : spot.type === "UTENDORS" 
+              ? "#10b981"
+              : "#7CB342"
 
-        const fillColor = spot.type === "UTENDORS" 
-          ? "rgba(200, 255, 200, 0.5)" // Økt opacity
-          : "rgba(144, 238, 144, 0.5)"  // Økt opacity
-        const color = spot.type === "UTENDORS" 
-          ? "#10b981" // Mørkere grønn for bedre synlighet
-          : "#7CB342"
+          const rectangle = L.rectangle(rectBounds, {
+            color: color,
+            fillColor: fillColor,
+            fillOpacity: isSelected ? 0.6 : 0.5,
+            weight: isSelected ? 4 : 3,
+            interactive: true,
+          })
+            .addTo(map)
+            // Ikke bind popup - det kan forhindre klikk
 
-        const rectangle = L.rectangle(rectBounds, {
-          color: color,
-          fillColor: fillColor,
-          fillOpacity: 0.5, // Økt fra 0.3 til 0.5
-          weight: 3, // Økt fra 2 til 3
-        })
-          .addTo(map)
-          .bindPopup(getPopupContent(spot))
+          // Gjør rektangel klikkbar - én klikk skal være nok
+          rectangle.on("click", (e) => {
+            e.originalEvent.stopPropagation()
+            e.originalEvent.preventDefault()
+            onMarkerClick(spot.id)
+          })
+          
+          // Hover-effekt med popup
+          rectangle.on("mouseover", function(this: L.Rectangle) {
+            if (selectedSpotId !== spot.id) {
+              this.setStyle({
+                weight: 4,
+                fillOpacity: 0.7,
+              })
+            }
+            if (map) {
+              map.getContainer().style.cursor = "pointer"
+            }
+            // Vis popup på hover
+            const popup = L.popup().setContent(getPopupContent(spot))
+            this.bindPopup(popup).openPopup()
+          })
+          
+          rectangle.on("mouseout", function(this: L.Rectangle) {
+            const currentIsSelected = selectedSpotId === spot.id
+            this.setStyle({
+              weight: currentIsSelected ? 4 : 3,
+              fillOpacity: currentIsSelected ? 0.6 : 0.5,
+            })
+            if (map) {
+              map.getContainer().style.cursor = ""
+            }
+          })
 
-        rectangle.on("click", () => {
-          onMarkerClick(spot.id)
-        })
-
-        rectanglesRef.current.push(rectangle)
-        console.log(`✅ Rektangel (beregnet) lagt til kartet for spot ${spot.id}`)
+          rectanglesMapRef.current[spot.id] = rectangle
+          rectanglesRef.current.push(rectangle)
+        }
       } else {
         // Vis markør ved zoom ut eller hvis vi ikke har rektangel-data
         if (showRectangles) {
@@ -251,24 +524,79 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
         } else {
           console.log(`📍 Tegner P-ikon for spot ${spot.id} (zoom ${currentZoom} < 15)`)
         }
-        // Bruk samme gradient og font som logoen (from-blue-600 to-green-600)
-        // blue-600 = #2563eb, green-600 = #16a34a
-        const customIcon = L.divIcon({
-          className: "parking-marker",
-          html: `<div style="width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(to bottom right, #2563eb, #16a34a); border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px;">P</div>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15],
-        })
-
-        const marker = L.marker([spot.latitude, spot.longitude], { icon: customIcon })
-          .addTo(map)
-          .bindPopup(getPopupContent(spot))
-
-        marker.on("click", () => {
-          onMarkerClick(spot.id)
-        })
+        // Sjekk om markør allerede eksisterer
+        const existingMarker = markersMapRef.current[spot.id]
         
-        markersRef.current.push(marker)
+        if (existingMarker) {
+          // Oppdater bare ikonet, ikke lag ny markør
+          const isSelected = selectedSpotId === spot.id
+          const iconBackground = isSelected
+            ? "background: #dc2626;"
+            : "background: linear-gradient(to bottom right, #2563eb, #16a34a);"
+          const iconBorder = isSelected
+            ? "border: 4px solid white;"
+            : "border: 3px solid white;"
+          
+          const customIcon = L.divIcon({
+            className: "parking-marker",
+            html: `<div style="width: 40px; height: 40px; border-radius: 50%; ${iconBackground} ${iconBorder} box-shadow: 0 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; cursor: pointer;">P</div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          })
+          
+          existingMarker.setIcon(customIcon)
+        } else {
+          // Lag ny markør
+          const isSelected = selectedSpotId === spot.id
+          const iconBackground = isSelected
+            ? "background: #dc2626;" // Rød når valgt
+            : "background: linear-gradient(to bottom right, #2563eb, #16a34a);" // Standard gradient
+          const iconBorder = isSelected
+            ? "border: 4px solid white;" // Tykkere border når valgt
+            : "border: 3px solid white;"
+          
+          // Gjør ikonet større (40px i stedet for 30px) for bedre synlighet og klikkbarhet
+          const customIcon = L.divIcon({
+            className: "parking-marker",
+            html: `<div style="width: 40px; height: 40px; border-radius: 50%; ${iconBackground} ${iconBorder} box-shadow: 0 3px 6px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; cursor: pointer;">P</div>`,
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
+          })
+
+          const marker = L.marker([spot.latitude, spot.longitude], { 
+            icon: customIcon,
+            interactive: true,
+            zIndexOffset: isSelected ? 1000 : 0, // Høyere z-index når valgt
+          })
+            .addTo(map)
+            // Ikke bind popup - det kan forhindre klikk
+
+          // Gjør markør klikkbar - én klikk skal være nok
+          marker.on("click", (e) => {
+            e.originalEvent.stopPropagation()
+            e.originalEvent.preventDefault()
+            onMarkerClick(spot.id)
+          })
+          
+          // Hover-effekt med popup
+          marker.on("mouseover", function(this: L.Marker) {
+            if (map) {
+              map.getContainer().style.cursor = "pointer"
+            }
+            // Vis popup på hover
+            const popup = L.popup().setContent(getPopupContent(spot))
+            this.bindPopup(popup).openPopup()
+          })
+          
+          marker.on("mouseout", function(this: L.Marker) {
+            if (map) {
+              map.getContainer().style.cursor = ""
+            }
+          })
+          
+          markersMapRef.current[spot.id] = marker
+          markersRef.current.push(marker)
+        }
       }
     })
 
@@ -320,7 +648,7 @@ export default function Map({ parkingSpots, userLocation, onMarkerClick, onBound
       map.off("zoomstart", handleZoomStart)
       map.off("zoomend", handleZoomChange)
     }
-  }, [parkingSpots, userLocation, onMarkerClick, onBoundsChange, renderKey])
+  }, [parkingSpots, userLocation, onMarkerClick, onBoundsChange, renderKey, selectedSpotId])
 
   return <div ref={mapContainerRef} className="h-full w-full" />
 }

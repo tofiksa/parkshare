@@ -185,13 +185,22 @@ export async function GET(request: Request) {
           type: spot.type,
           isAvailable: true,
           distance, // Legg til avstand i response
-          // Rektangel-koordinater (nå eksplisitt valgt i select)
+          // Rektangel-koordinater (for bakoverkompatibilitet)
           rectNorthLat: spot.rectNorthLat ?? null,
           rectSouthLat: spot.rectSouthLat ?? null,
           rectEastLng: spot.rectEastLng ?? null,
           rectWestLng: spot.rectWestLng ?? null,
           rectWidthMeters: spot.rectWidthMeters ?? null,
           rectHeightMeters: spot.rectHeightMeters ?? null,
+          // Polygon-koordinater for roterte rektangler
+          rectCorner1Lat: spot.rectCorner1Lat ?? null,
+          rectCorner1Lng: spot.rectCorner1Lng ?? null,
+          rectCorner2Lat: spot.rectCorner2Lat ?? null,
+          rectCorner2Lng: spot.rectCorner2Lng ?? null,
+          rectCorner3Lat: spot.rectCorner3Lat ?? null,
+          rectCorner3Lng: spot.rectCorner3Lng ?? null,
+          rectCorner4Lat: spot.rectCorner4Lat ?? null,
+          rectCorner4Lng: spot.rectCorner4Lng ?? null,
         }
         } catch (calcError) {
           console.error("Error calculating distance for spot", spot.id, ":", calcError)
