@@ -54,6 +54,7 @@ export default function ParkingMapPage() {
   
   console.log("🟡 Component state - loading:", loading, "parkingSpots:", parkingSpots.length, "error:", error, "sessionStatus:", sessionStatus)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
+  const userLocationRef = useRef<{ lat: number; lng: number } | null>(null) // Ref for å lese nyeste userLocation uten re-render
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const allParkingSpotsRef = useRef<ParkingSpot[]>([]) // Ref for å holde ALLE parkeringsplasser fra API
@@ -61,11 +62,18 @@ export default function ParkingMapPage() {
   const [mapBounds, setMapBounds] = useState<{ north: number; south: number; east: number; west: number } | null>(null)
   const mapBoundsRef = useRef<{ north: number; south: number; east: number; west: number } | null>(null)
   const spotListRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({}) // Refs for liste-elementer
+  const hasReceivedInitialDataRef = useRef(false) // Track om vi har mottatt initial data
+  const hasReceivedInitialBoundsRef = useRef(false) // Track om vi har mottatt initial bounds
+  const isFetchingRef = useRef(false) // Track om vi allerede fetcher data
 
-  // Oppdater ref når mapBounds endres
+  // Oppdater refs når state endres
   useEffect(() => {
     mapBoundsRef.current = mapBounds
   }, [mapBounds])
+  
+  useEffect(() => {
+    userLocationRef.current = userLocation
+  }, [userLocation])
 
   // Filtrer parkeringsplasser basert på kartets bounds
   const filterSpotsByBounds = useCallback((spots: ParkingSpot[], bounds: { north: number; south: number; east: number; west: number }) => {
@@ -90,16 +98,31 @@ export default function ParkingMapPage() {
     console.log("🟢 Location:", location)
     console.log("🟢 User location from state:", userLocation)
 
-    // IKKE kanseller forrige request hvis den allerede har returnert data
+    // IKKE kanseller forrige request hvis vi allerede har data
     // Dette forhindrer at data forsvinner når nye søk trigges
-    const abortController = new AbortController()
     const previousController = abortControllerRef.current
     
     // Kun kanseller hvis forrige request ikke har returnert data ennå
+    // OG vi ikke allerede har data
     if (previousController && !previousController.signal.aborted && allParkingSpotsRef.current.length === 0) {
+      console.log("🟡 Aborting previous request (no data yet)")
       previousController.abort()
     }
     
+    // Hvis vi allerede har data, ikke gjør ny request
+    if (allParkingSpotsRef.current.length > 0 && hasReceivedInitialDataRef.current) {
+      console.log("🟡 Already have data, skipping fetch")
+      return
+    }
+    
+    // Hvis vi allerede fetcher, ikke start ny fetch
+    if (isFetchingRef.current) {
+      console.log("🟡 Already fetching, skipping")
+      return
+    }
+    
+    isFetchingRef.current = true
+    const abortController = new AbortController()
     abortControllerRef.current = abortController
 
     console.log("Setting loading to true")
@@ -135,6 +158,7 @@ export default function ParkingMapPage() {
       
       if (!abortController.signal.aborted) {
         clearTimeout(loadingTimeout)
+        isFetchingRef.current = false
         const spots = Array.isArray(data.parkingSpots) ? data.parkingSpots : []
         
         // Debug logging
@@ -159,14 +183,22 @@ export default function ParkingMapPage() {
         
         // Lagre alle parkeringsplasser i ref (alle fra API, ikke filtrert)
         allParkingSpotsRef.current = spots
+        hasReceivedInitialDataRef.current = true
         
-        // Filtrer basert på kartets bounds hvis de er satt (bruk ref for å unngå dependency issues)
+        // Filtrer basert på kartets bounds hvis de er satt OG vi har mottatt initial bounds
+        // Ved første innlasting, vis ALLE spots uansett bounds (for å unngå at feil bounds filtrerer bort alt)
         const currentBounds = mapBoundsRef.current
-        if (currentBounds) {
+        
+        // Kun filtrer hvis vi har mottatt initial bounds (dvs. brukeren har interagert med kartet)
+        // Dette sikrer at vi viser alle spots ved første innlasting
+        if (currentBounds && hasReceivedInitialBoundsRef.current) {
+          // Bounds er satt OG vi har mottatt initial bounds - filtrer spots
           const filteredSpots = filterSpotsByBounds(spots, currentBounds)
+          console.log("🟦 Filtering spots by bounds:", filteredSpots.length, "out of", spots.length, "bounds:", currentBounds)
           setParkingSpots(filteredSpots)
         } else {
-          // Hvis ingen bounds ennå, vis alle (vil bli filtrert når kartet laster)
+          // Ingen bounds ennå ELLER vi har ikke mottatt initial bounds - vis alle spots
+          console.log("🟦 Showing all spots (no bounds yet or initial bounds not received):", spots.length)
           setParkingSpots(spots)
         }
         
@@ -179,6 +211,7 @@ export default function ParkingMapPage() {
       }
     } catch (err) {
       clearTimeout(loadingTimeout)
+      isFetchingRef.current = false
       if (err instanceof Error && err.name === "AbortError") {
         console.log("Request was aborted")
         return
@@ -235,6 +268,11 @@ export default function ParkingMapPage() {
     console.log("🔵 Session:", session ? "exists" : "null")
     console.log("🔵 User type:", session?.user?.userType)
     console.log("🔵 Has searched:", hasSearchedRef.current)
+    console.log("🔵 Is fetching:", isFetchingRef.current)
+    console.log("🔵 Has received initial data:", hasReceivedInitialDataRef.current)
+    console.log("🔵 All spots count:", allParkingSpotsRef.current.length)
+    console.log("🔵 Parking spots state count:", parkingSpots.length)
+    console.log("🔵 User location:", userLocation)
     
     // Vent til session er lastet (ikke "loading")
     if (sessionStatus === "loading") {
@@ -249,32 +287,165 @@ export default function ParkingMapPage() {
       return
     }
     
-    if (session && session.user.userType === "LEIETAKER" && !hasSearchedRef.current) {
+    // VIKTIG: Sjekk om vi faktisk har data i BÅDE ref OG state
+    // Dette sikrer at vi alltid henter data hvis vi ikke har det, selv om refs er satt
+    const hasDataInRef = hasReceivedInitialDataRef.current && allParkingSpotsRef.current.length > 0
+    const hasDataInState = parkingSpots.length > 0
+    
+    if (hasDataInRef && hasDataInState) {
+      console.log("🟡 Already have data in both ref and state, skipping fetch")
+      setLoading(false)
+      return
+    }
+    
+    // Hvis vi har data i ref men ikke i state, oppdater state
+    if (hasDataInRef && !hasDataInState) {
+      console.log("🟡 Have data in ref but not in state - updating state")
+      const currentBounds = mapBoundsRef.current
+      if (currentBounds && hasReceivedInitialBoundsRef.current) {
+        const filteredSpots = filterSpotsByBounds(allParkingSpotsRef.current, currentBounds)
+        setParkingSpots(filteredSpots)
+      } else {
+        setParkingSpots(allParkingSpotsRef.current)
+      }
+      setLoading(false)
+      return
+    }
+    
+    // Hvis vi allerede fetcher, ikke start ny fetch
+    // Men hvis vi har ventet lenge uten data, kan det være at forrige fetch feilet
+    if (isFetchingRef.current) {
+      console.log("🟡 Already fetching, skipping")
+      // Hvis vi allerede fetcher, sjekk om vi har data - hvis ja, sett loading til false
+      if (hasDataInRef || hasDataInState) {
+        setLoading(false)
+      }
+      return
+    }
+    
+    // Hvis vi allerede har søkt MEN ikke har data, prøv igjen
+    // Dette håndterer tilfeller hvor forrige fetch feilet eller ble avbrutt
+    if (hasSearchedRef.current) {
+      // Hvis vi har søkt men ikke har data, kan det være at forrige fetch feilet
+      // I så fall, prøv igjen (men kun hvis vi ikke allerede fetcher)
+      if (!hasDataInRef && !hasDataInState) {
+        console.log("🟡 Already searched but no data in ref or state - retrying fetch")
+        // Reset flagg for å tillate ny fetch
+        hasSearchedRef.current = false
+        // Fall through til fetch-logikken nedenfor
+      } else {
+        console.log("🟡 Already searched and have data, skipping")
+        setLoading(false)
+        return
+      }
+    }
+    
+    if (session && session.user.userType === "LEIETAKER") {
       // Sett flagg med en gang for å unngå flere kall
       hasSearchedRef.current = true
+      isFetchingRef.current = true
       
       console.log("🟢 useEffect: Fetching parking spots (first time)")
       
-      // Hent parkeringsplasser med en gang, uavhengig av userLocation
-      // Hvis userLocation ikke er satt, bruker vi Oslo sentrum som fallback
-      // KALL DIREKTE - ikke bruk timer som kan bli kansellert
-      console.log("🟢 Calling fetchParkingSpots directly")
-      fetchParkingSpots().catch((err) => {
-        console.error("Failed to fetch parking spots:", err)
-        setLoading(false)
-      })
+      // Kall API direkte i stedet for via fetchParkingSpots
+      // Bruk userLocationRef for å få nyeste verdi uten å re-triggere effect
+      const location = userLocationRef.current || { lat: 59.9139, lng: 10.7522 } // Oslo sentrum
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+      
+      setLoading(true)
+      setError("")
+      
+      // Timeout for å unngå at loading forblir true
+      const loadingTimeout = setTimeout(() => {
+        if (!abortController.signal.aborted && isFetchingRef.current) {
+          console.warn("🟡 Loading timeout reached - setting loading to false")
+          isFetchingRef.current = false
+          hasSearchedRef.current = false // Reset så vi kan prøve igjen
+          setLoading(false)
+          setError("Timeout: Kunne ikke laste parkeringsplasser. Prøv å oppdatere siden.")
+        }
+      }, 10000)
+      
+      const doFetch = async () => {
+        try {
+          console.log("🟢 About to call API directly")
+          console.log("🟢 Location:", location)
+          console.log("🟢 Abort signal aborted:", abortController.signal.aborted)
+          
+          const response = await fetch(
+            `/api/parking-spots/map?latitude=${location.lat}&longitude=${location.lng}&radius=1`,
+            { signal: abortController.signal }
+          )
+          
+          console.log("🟢 Response status:", response.status, response.ok)
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ error: "Ukjent feil" }))
+            throw new Error(errorData.error || `Kunne ikke hente parkeringsplasser (${response.status})`)
+          }
+          
+          const data = await response.json()
+          console.log("🟢 API response data:", data)
+          
+          // Sjekk om request ble avbrutt FØR vi oppdaterer state
+          if (abortController.signal.aborted) {
+            console.log("🟢 Request was aborted before state update")
+            clearTimeout(loadingTimeout)
+            isFetchingRef.current = false
+            hasSearchedRef.current = false // Reset så vi kan prøve igjen
+            return
+          }
+          
+          clearTimeout(loadingTimeout)
+          isFetchingRef.current = false
+          const spots = Array.isArray(data.parkingSpots) ? data.parkingSpots : []
+          
+          console.log("🟢 Fetched parking spots:", spots.length)
+          
+          // VIKTIG: Oppdater data FØR vi setter hasReceivedInitialDataRef
+          // Dette sikrer at data er tilgjengelig når vi sjekker i neste render
+          allParkingSpotsRef.current = spots
+          hasReceivedInitialDataRef.current = true
+          
+          const currentBounds = mapBoundsRef.current
+          
+          if (currentBounds && hasReceivedInitialBoundsRef.current) {
+            const filteredSpots = filterSpotsByBounds(spots, currentBounds)
+            console.log("🟢 Filtering spots by bounds:", filteredSpots.length, "out of", spots.length)
+            setParkingSpots(filteredSpots)
+          } else {
+            console.log("🟢 Showing all spots (no bounds yet):", spots.length)
+            setParkingSpots(spots)
+          }
+          
+          setError("")
+          setLoading(false)
+        } catch (err) {
+          clearTimeout(loadingTimeout)
+          isFetchingRef.current = false
+          hasSearchedRef.current = false // Reset så vi kan prøve igjen ved neste render
+          if (err instanceof Error && err.name === "AbortError") {
+            console.log("🟢 Request was aborted (in catch)")
+            setLoading(false)
+            return
+          }
+          console.error("🟢 Failed to fetch parking spots:", err)
+          setError(err instanceof Error ? err.message : "Kunne ikke hente parkeringsplasser")
+          setLoading(false)
+        }
+      }
+      
+      doFetch()
     } else {
       console.log("🔴 useEffect: Conditions not met", {
         hasSession: !!session,
         isLeietaker: session?.user?.userType === "LEIETAKER",
         hasSearched: hasSearchedRef.current
       })
-      // Hvis vi ikke skal hente data, sett loading til false
-      if (hasSearchedRef.current || (session && session.user.userType !== "LEIETAKER")) {
-        setLoading(false)
-      }
+      setLoading(false)
     }
-  }, [session, sessionStatus, fetchParkingSpots]) // Inkluder fetchParkingSpots i dependencies
+  }, [session, sessionStatus]) // filterSpotsByBounds er stabil useCallback, trenger ikke være i dependencies
 
   useEffect(() => {
     if (session && session.user.userType === "LEIETAKER") {
@@ -283,11 +454,21 @@ export default function ParkingMapPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]) // Kun kjøre når session er klar
 
+  // Cleanup: abort request og reset refs ved unmount
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
+      console.log("🟡 Component unmounting - cleaning up")
+      // Abort request hvis den fortsatt kjører
+      if (abortControllerRef.current && !abortControllerRef.current.signal.aborted) {
+        console.log("🟡 Aborting request on unmount")
         abortControllerRef.current.abort()
       }
+      // Reset refs ved unmount for å sikre at de er rene ved neste mount
+      // Dette sikrer at refs resetter ved client-side navigation hvis komponenten unmountes
+      hasSearchedRef.current = false
+      isFetchingRef.current = false
+      hasReceivedInitialDataRef.current = false
+      allParkingSpotsRef.current = []
     }
   }, [])
 
@@ -314,23 +495,48 @@ export default function ParkingMapPage() {
   // Håndter bounds-endringer fra kartet
   const handleBoundsChange = useCallback((bounds: { north: number; south: number; east: number; west: number }) => {
     console.log("🟦 Map bounds changed:", bounds)
+    console.log("🟦 Has received initial data:", hasReceivedInitialDataRef.current)
+    console.log("🟦 Has received initial bounds:", hasReceivedInitialBoundsRef.current)
+    console.log("🟦 All spots count:", allParkingSpotsRef.current.length)
+    
     setMapBounds(bounds)
     
-    // Filtrer alle parkeringsplasser basert på nye bounds (hvis vi har data)
-    if (allParkingSpotsRef.current.length > 0) {
+    // Marker at vi har mottatt initial bounds (etter første gang)
+    if (!hasReceivedInitialBoundsRef.current) {
+      hasReceivedInitialBoundsRef.current = true
+      console.log("🟦 Initial bounds received")
+    }
+    
+    // Kun filtrer hvis vi har mottatt initial data
+    // Men vent med å filtrere til vi har mottatt initial bounds (dvs. ikke ved første bounds-kall)
+    if (hasReceivedInitialDataRef.current && allParkingSpotsRef.current.length > 0 && hasReceivedInitialBoundsRef.current) {
       const filtered = filterSpotsByBounds(allParkingSpotsRef.current, bounds)
       console.log("🟦 Filtered spots:", filtered.length, "out of", allParkingSpotsRef.current.length)
       setParkingSpots(filtered)
+    } else if (!hasReceivedInitialDataRef.current) {
+      // Hvis vi ikke har mottatt initial data ennå, ikke oppdater parkingSpots
+      console.log("🟦 Bounds received but waiting for initial data. Current spots:", parkingSpots.length)
+    } else if (!hasReceivedInitialBoundsRef.current) {
+      // Hvis vi har data men ikke har mottatt initial bounds ennå, vis alle spots
+      console.log("🟦 Bounds received but showing all spots until initial bounds received")
+      setParkingSpots(allParkingSpotsRef.current)
     }
-  }, [])
+  }, [filterSpotsByBounds, parkingSpots.length])
 
-  // Oppdater listen når bounds endres
+  // Oppdater listen når bounds endres (kun hvis vi har mottatt initial data og initial bounds)
   useEffect(() => {
-    if (mapBounds && allParkingSpotsRef.current.length > 0) {
+    // Kun filtrer hvis vi har mottatt initial data OG initial bounds
+    // Dette forhindrer at bounds som kommer før data eller ved første innlasting filtrerer bort alle spots
+    if (mapBounds && hasReceivedInitialDataRef.current && hasReceivedInitialBoundsRef.current && allParkingSpotsRef.current.length > 0) {
       const filtered = filterSpotsByBounds(allParkingSpotsRef.current, mapBounds)
+      console.log("🟦 useEffect bounds: Filtered spots:", filtered.length, "out of", allParkingSpotsRef.current.length)
       setParkingSpots(filtered)
+    } else if (hasReceivedInitialDataRef.current && allParkingSpotsRef.current.length > 0 && !hasReceivedInitialBoundsRef.current) {
+      // Hvis vi har data men ikke initial bounds ennå, vis alle spots
+      console.log("🟦 useEffect bounds: Showing all spots (waiting for initial bounds)")
+      setParkingSpots(allParkingSpotsRef.current)
     }
-  }, [mapBounds])
+  }, [mapBounds, filterSpotsByBounds])
 
   // Scroll til valgt element når selectedSpot endres
   useEffect(() => {
