@@ -346,7 +346,7 @@ export default function NewParkingSpotPage() {
                 required
                 value={formData.address}
                 onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 placeholder="Gateadresse, postnummer, by"
               />
             </div>
@@ -486,7 +486,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner1Lat: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -498,7 +498,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner1Lng: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -517,7 +517,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner2Lat: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -529,7 +529,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner2Lng: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -548,7 +548,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner3Lat: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -560,7 +560,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner3Lng: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -579,7 +579,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner4Lat: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                       <div>
@@ -591,7 +591,7 @@ export default function NewParkingSpotPage() {
                           onChange={(e) =>
                             setFormData({ ...formData, rectCorner4Lng: e.target.value })
                           }
-                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                          className="w-full text-sm rounded border border-gray-300 px-2 py-1 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
                     </div>
@@ -609,7 +609,7 @@ export default function NewParkingSpotPage() {
                         step="any"
                         value={formData.latitude}
                         readOnly
-                        className="w-full text-sm rounded border border-gray-300 px-2 py-1 bg-gray-100"
+                        className="w-full text-sm rounded border border-gray-300 px-2 py-1 bg-gray-100 text-gray-900"
                         placeholder="59.9139"
                       />
                     </div>
@@ -620,7 +620,7 @@ export default function NewParkingSpotPage() {
                         step="any"
                         value={formData.longitude}
                         readOnly
-                        className="w-full text-sm rounded border border-gray-300 px-2 py-1 bg-gray-100"
+                        className="w-full text-sm rounded border border-gray-300 px-2 py-1 bg-gray-100 text-gray-900"
                         placeholder="10.7522"
                       />
                     </div>
@@ -642,7 +642,7 @@ export default function NewParkingSpotPage() {
                 required
                 value={formData.pricePerHour}
                 onChange={(e) => setFormData({ ...formData, pricePerHour: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 placeholder="30"
               />
               {suggestedPrice && (
@@ -662,7 +662,7 @@ export default function NewParkingSpotPage() {
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
                 placeholder="Beskriv parkeringsplassen..."
               />
             </div>

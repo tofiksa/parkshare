@@ -12,6 +12,15 @@ const updateParkingSpotSchema = z.object({
   description: z.string().optional(),
   pricePerHour: z.number().positive().optional(),
   isActive: z.boolean().optional(),
+  // Polygon-koordinater
+  rectCorner1Lat: z.number().optional(),
+  rectCorner1Lng: z.number().optional(),
+  rectCorner2Lat: z.number().optional(),
+  rectCorner2Lng: z.number().optional(),
+  rectCorner3Lat: z.number().optional(),
+  rectCorner3Lng: z.number().optional(),
+  rectCorner4Lat: z.number().optional(),
+  rectCorner4Lng: z.number().optional(),
 })
 
 export async function GET(
@@ -88,9 +97,96 @@ export async function PATCH(
     const body = await request.json()
     const validatedData = updateParkingSpotSchema.parse(body)
 
+    // Beregn bounds fra polygon-koordinater hvis de er oppdatert
+    let rectNorthLat: number | null = null
+    let rectSouthLat: number | null = null
+    let rectEastLng: number | null = null
+    let rectWestLng: number | null = null
+
+    if (
+      validatedData.rectCorner1Lat !== undefined &&
+      validatedData.rectCorner1Lng !== undefined &&
+      validatedData.rectCorner2Lat !== undefined &&
+      validatedData.rectCorner2Lng !== undefined &&
+      validatedData.rectCorner3Lat !== undefined &&
+      validatedData.rectCorner3Lng !== undefined &&
+      validatedData.rectCorner4Lat !== undefined &&
+      validatedData.rectCorner4Lng !== undefined
+    ) {
+      const lats = [
+        validatedData.rectCorner1Lat,
+        validatedData.rectCorner2Lat,
+        validatedData.rectCorner3Lat,
+        validatedData.rectCorner4Lat,
+      ]
+      const lngs = [
+        validatedData.rectCorner1Lng,
+        validatedData.rectCorner2Lng,
+        validatedData.rectCorner3Lng,
+        validatedData.rectCorner4Lng,
+      ]
+
+      rectNorthLat = Math.max(...lats)
+      rectSouthLat = Math.min(...lats)
+      rectEastLng = Math.max(...lngs)
+      rectWestLng = Math.min(...lngs)
+    }
+
+    // Bygg oppdateringsdata
+    const updateData: any = { ...validatedData }
+    
+    // Legg til bounds hvis polygon-koordinater er oppdatert
+    if (rectNorthLat !== null) {
+      updateData.rectNorthLat = rectNorthLat
+      updateData.rectSouthLat = rectSouthLat
+      updateData.rectEastLng = rectEastLng
+      updateData.rectWestLng = rectWestLng
+    }
+
+    // Hvis imageUrl er fjernet eller mangler, og vi har koordinater, generer kartbilde
+    if (!updateData.imageUrl && (updateData.latitude !== undefined || parkingSpot.latitude) && 
+        (updateData.longitude !== undefined || parkingSpot.longitude)) {
+      try {
+        const latitude = updateData.latitude ?? parkingSpot.latitude
+        const longitude = updateData.longitude ?? parkingSpot.longitude
+        
+        if (latitude && longitude) {
+          const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+          const generateResponse = await fetch(`${baseUrl}/api/parking-spots/generate-map-image`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Cookie: request.headers.get("cookie") || "",
+            },
+            body: JSON.stringify({
+              parkingSpotId: params.id,
+              latitude,
+              longitude,
+              rectCorner1Lat: updateData.rectCorner1Lat ?? parkingSpot.rectCorner1Lat,
+              rectCorner1Lng: updateData.rectCorner1Lng ?? parkingSpot.rectCorner1Lng,
+              rectCorner2Lat: updateData.rectCorner2Lat ?? parkingSpot.rectCorner2Lat,
+              rectCorner2Lng: updateData.rectCorner2Lng ?? parkingSpot.rectCorner2Lng,
+              rectCorner3Lat: updateData.rectCorner3Lat ?? parkingSpot.rectCorner3Lat,
+              rectCorner3Lng: updateData.rectCorner3Lng ?? parkingSpot.rectCorner3Lng,
+              rectCorner4Lat: updateData.rectCorner4Lat ?? parkingSpot.rectCorner4Lat,
+              rectCorner4Lng: updateData.rectCorner4Lng ?? parkingSpot.rectCorner4Lng,
+            }),
+            })
+
+            if (generateResponse.ok) {
+              const imageData = await generateResponse.json()
+              updateData.imageUrl = imageData.url
+            }
+          }
+        } catch (error) {
+          console.error("Error generating map image:", error)
+          // Fortsett uten bilde hvis generering feiler
+        }
+      }
+
     const updatedParkingSpot = await prisma.parkingSpot.update({
       where: { id: params.id },
-      data: validatedData,
+      data: updateData,
     })
 
     return NextResponse.json(updatedParkingSpot)

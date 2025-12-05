@@ -136,7 +136,7 @@ export default function SignUpPage() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="Ola Nordmann"
                   />
                 </div>
@@ -152,7 +152,7 @@ export default function SignUpPage() {
                     required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="din@epost.no"
                   />
                 </div>
@@ -166,7 +166,7 @@ export default function SignUpPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="+47 123 45 678"
                   />
                 </div>
@@ -182,7 +182,7 @@ export default function SignUpPage() {
                     required
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="Minst 8 tegn"
                   />
                   <p className="mt-1 text-xs text-gray-600">Passordet må være minst 8 tegn langt</p>
@@ -199,7 +199,7 @@ export default function SignUpPage() {
                     required
                     value={formData.confirmPassword}
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="••••••••"
                   />
                 </div>

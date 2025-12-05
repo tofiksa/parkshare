@@ -30,6 +30,7 @@ function SignInPageContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
     setLoading(true)
 
     try {
@@ -40,18 +41,20 @@ function SignInPageContent() {
       })
 
       if (result?.error) {
-        // Check if error is about email verification
-        if (result.error.includes("verifisert")) {
-          setError(result.error)
-        } else {
-          setError("Ugyldig e-post eller passord")
-        }
-      } else {
-        // Force session refresh and redirect
+        // Display the specific error message from NextAuth
+        setError(result.error)
+      } else if (result?.ok) {
+        // Successful login - redirect to dashboard
         window.location.href = "/dashboard"
+      } else {
+        // Fallback: if result is null or undefined, show generic error
+        setError("Innlogging feilet. Prøv igjen.")
       }
     } catch (err) {
-      setError("Noe gikk galt. Prøv igjen.")
+      // Catch any unexpected errors
+      const errorMessage = err instanceof Error ? err.message : "Noe gikk galt. Prøv igjen."
+      setError(errorMessage)
+      console.error("Login error:", err)
     } finally {
       setLoading(false)
     }
@@ -112,7 +115,7 @@ function SignInPageContent() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="din@epost.no"
                   />
                 </div>
@@ -128,7 +131,7 @@ function SignInPageContent() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                     placeholder="••••••••"
                   />
                 </div>

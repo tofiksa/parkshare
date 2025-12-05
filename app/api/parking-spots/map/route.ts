@@ -14,23 +14,18 @@ const mapSearchSchema = z.object({
 
 export async function GET(request: Request) {
   try {
-    console.log("GET /api/parking-spots/map called")
     const session = await getServerSession(authOptions)
 
     if (!session) {
-      console.log("No session found")
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
     }
 
     if (session.user.userType !== "LEIETAKER") {
-      console.log("User is not LEIETAKER:", session.user.userType)
       return NextResponse.json(
         { error: "Kun leietakere kan søke etter parkeringsplasser" },
         { status: 403 }
       )
     }
-    
-    console.log("Session validated, user:", session.user.email)
 
     const { searchParams } = new URL(request.url)
     const latitude = searchParams.get("latitude")
@@ -50,20 +45,21 @@ export async function GET(request: Request) {
       radius: radius ? parseFloat(radius) : 1, // Default 1 km
     }
 
-    console.log("Query params:", query)
     const validatedQuery = mapSearchSchema.parse(query)
-    console.log("Validated query:", validatedQuery)
 
-    // Hent alle aktive parkeringsplasser som støtter ON_DEMAND
-    console.log("Fetching parking spots from database...")
+    // Hent alle aktive parkeringsplasser (både ADVANCE og ON_DEMAND)
     let parkingSpots
     try {
       // Hent alle felter inkludert rektangelfeltene
-      // Bruk raw query eller include for å få alle felter
+      // Inkluder alle aktive plasser som har koordinater (både ADVANCE og ON_DEMAND)
       parkingSpots = await (prisma.parkingSpot.findMany({
         where: {
           isActive: true,
-          supportsOnDemandBooking: true,
+          // Inkluder både plasser som støtter ADVANCE og/eller ON_DEMAND
+          OR: [
+            { supportsAdvanceBooking: true },
+            { supportsOnDemandBooking: true },
+          ],
           latitude: { not: null },
           longitude: { not: null },
         },
@@ -78,19 +74,6 @@ export async function GET(request: Request) {
     } catch (prismaError) {
       console.error("Prisma error fetching parking spots:", prismaError)
       throw prismaError
-    }
-    
-    // Debug: sjekk om rektangeldata er med i første spot
-    if (parkingSpots.length > 0) {
-      const firstSpot = parkingSpots[0] as any
-      console.log("🔍 API - First spot rect data from DB:", {
-        id: firstSpot.id,
-        address: firstSpot.address,
-        hasRectCoords: !!(firstSpot.rectNorthLat && firstSpot.rectSouthLat && firstSpot.rectEastLng && firstSpot.rectWestLng),
-        hasRectSize: !!(firstSpot.rectWidthMeters && firstSpot.rectHeightMeters),
-        rectNorthLat: firstSpot.rectNorthLat,
-        rectSouthLat: firstSpot.rectSouthLat,
-      })
     }
 
     // Beregn avstand for alle plasser og sorter etter avstand
@@ -113,11 +96,8 @@ export async function GET(request: Request) {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
       return R * c
     }
-
-    console.log("Found parking spots:", parkingSpots.length)
     
     // Sjekk tilgjengelighet (finn aktive ON_DEMAND bookinger)
-    console.log("Checking for active bookings...")
     let activeBookings: Array<{ parkingSpotId: string }> = []
     try {
       activeBookings = await prisma.booking.findMany({
@@ -135,14 +115,11 @@ export async function GET(request: Request) {
       activeBookings = []
     }
 
-    console.log("Active bookings:", activeBookings.length)
     const bookedSpotIds = new Set(activeBookings.map((b) => b.parkingSpotId))
 
     // Formater og beregn avstand for alle plasser, sorter etter avstand
     // VIKTIG: Returnerer ALLE plasser, ikke filtrert etter radius
     // Alle aktive ON_DEMAND plasser vises, sortert etter avstand fra brukerens lokasjon
-    console.log("Processing", parkingSpots.length, "parking spots")
-    console.log("Booked spot IDs:", Array.from(bookedSpotIds))
     
     const spotsWithDistance = (parkingSpots as any[])
       .filter((spot: any) => {
@@ -209,24 +186,6 @@ export async function GET(request: Request) {
       })
       .filter((spot): spot is NonNullable<typeof spot> => spot !== null) // Fjern null-verdier
       .sort((a, b) => a.distance - b.distance) // Sorter etter avstand (nærmest først)
-
-    console.log("Formatted spots with distance:", spotsWithDistance.length)
-    
-    // Debug: sjekk om rektangel-data er med
-    if (spotsWithDistance.length > 0) {
-      const firstSpot = spotsWithDistance[0]
-      console.log("🔍 First spot rect data:", {
-        id: firstSpot.id,
-        hasRectCoords: !!(firstSpot.rectNorthLat && firstSpot.rectSouthLat && firstSpot.rectEastLng && firstSpot.rectWestLng),
-        hasRectSize: !!(firstSpot.rectWidthMeters && firstSpot.rectHeightMeters),
-        rectNorthLat: firstSpot.rectNorthLat,
-        rectSouthLat: firstSpot.rectSouthLat,
-        rectWidthMeters: firstSpot.rectWidthMeters,
-        rectHeightMeters: firstSpot.rectHeightMeters,
-      })
-    }
-    
-    console.log("Returning response with", spotsWithDistance.length, "parking spots")
     
     // Returner alle plasser sortert etter avstand (ikke filtrert etter radius)
     // Alle aktive ON_DEMAND plasser vises, sortert etter avstand fra brukerens lokasjon

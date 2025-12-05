@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+// Dynamisk import av kart-komponenten
+const ParkingSpotDrawMap = dynamic(() => import("@/components/ParkingSpotDrawMap"), {
+	ssr: false,
+});
 
 interface ParkingSpot {
 	id: string;
@@ -18,6 +24,15 @@ interface ParkingSpot {
 	isActive: boolean;
 	createdAt: string;
 	updatedAt: string;
+	// Polygon-koordinater
+	rectCorner1Lat?: number | null;
+	rectCorner1Lng?: number | null;
+	rectCorner2Lat?: number | null;
+	rectCorner2Lng?: number | null;
+	rectCorner3Lat?: number | null;
+	rectCorner3Lng?: number | null;
+	rectCorner4Lat?: number | null;
+	rectCorner4Lng?: number | null;
 }
 
 export default function ParkingSpotDetailPage() {
@@ -36,11 +51,23 @@ export default function ParkingSpotDetailPage() {
 		pricePerHour: "",
 		isActive: true,
 		imageUrl: "",
+		latitude: "",
+		longitude: "",
+		// Polygon-koordinater
+		rectCorner1Lat: "",
+		rectCorner1Lng: "",
+		rectCorner2Lat: "",
+		rectCorner2Lng: "",
+		rectCorner3Lat: "",
+		rectCorner3Lng: "",
+		rectCorner4Lat: "",
+		rectCorner4Lng: "",
 	});
 	const [saving, setSaving] = useState(false);
 	const [imageFile, setImageFile] = useState<File | null>(null);
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [uploadingImage, setUploadingImage] = useState(false);
+	const [gettingLocation, setGettingLocation] = useState(false);
 
 	useEffect(() => {
 		if (id) {
@@ -63,6 +90,17 @@ export default function ParkingSpotDetailPage() {
 				pricePerHour: data.pricePerHour.toString(),
 				isActive: data.isActive,
 				imageUrl: data.imageUrl || "",
+				latitude: data.latitude?.toString() || "",
+				longitude: data.longitude?.toString() || "",
+				// Polygon-koordinater
+				rectCorner1Lat: data.rectCorner1Lat?.toString() || "",
+				rectCorner1Lng: data.rectCorner1Lng?.toString() || "",
+				rectCorner2Lat: data.rectCorner2Lat?.toString() || "",
+				rectCorner2Lng: data.rectCorner2Lng?.toString() || "",
+				rectCorner3Lat: data.rectCorner3Lat?.toString() || "",
+				rectCorner3Lng: data.rectCorner3Lng?.toString() || "",
+				rectCorner4Lat: data.rectCorner4Lat?.toString() || "",
+				rectCorner4Lng: data.rectCorner4Lng?.toString() || "",
 			});
 			if (data.imageUrl) {
 				setImagePreview(data.imageUrl);
@@ -79,19 +117,76 @@ export default function ParkingSpotDetailPage() {
 		setSaving(true);
 		setError("");
 
+		// Valider at polygon-koordinater er satt hvis de skal oppdateres
+		if (
+			editData.rectCorner1Lat &&
+			editData.rectCorner1Lng &&
+			editData.rectCorner2Lat &&
+			editData.rectCorner2Lng &&
+			editData.rectCorner3Lat &&
+			editData.rectCorner3Lng &&
+			editData.rectCorner4Lat &&
+			editData.rectCorner4Lng
+		) {
+			// Alle koordinater er satt - OK
+		} else if (
+			editData.rectCorner1Lat ||
+			editData.rectCorner1Lng ||
+			editData.rectCorner2Lat ||
+			editData.rectCorner2Lng ||
+			editData.rectCorner3Lat ||
+			editData.rectCorner3Lng ||
+			editData.rectCorner4Lat ||
+			editData.rectCorner4Lng
+		) {
+			// Noen koordinater er satt, men ikke alle
+			setError("Alle polygon-koordinater må være satt. Vennligst tegn parkeringsplassen på kartet.");
+			setSaving(false);
+			return;
+		}
+
 		try {
+			const updatePayload: any = {
+				address: editData.address,
+				description: editData.description || undefined,
+				pricePerHour: parseFloat(editData.pricePerHour),
+				isActive: editData.isActive,
+				imageUrl: editData.imageUrl || undefined,
+			};
+
+			// Legg til GPS-koordinater hvis de er satt
+			if (editData.latitude && editData.longitude) {
+				updatePayload.latitude = parseFloat(editData.latitude);
+				updatePayload.longitude = parseFloat(editData.longitude);
+			}
+
+			// Legg til polygon-koordinater hvis de er satt
+			if (
+				editData.rectCorner1Lat &&
+				editData.rectCorner1Lng &&
+				editData.rectCorner2Lat &&
+				editData.rectCorner2Lng &&
+				editData.rectCorner3Lat &&
+				editData.rectCorner3Lng &&
+				editData.rectCorner4Lat &&
+				editData.rectCorner4Lng
+			) {
+				updatePayload.rectCorner1Lat = parseFloat(editData.rectCorner1Lat);
+				updatePayload.rectCorner1Lng = parseFloat(editData.rectCorner1Lng);
+				updatePayload.rectCorner2Lat = parseFloat(editData.rectCorner2Lat);
+				updatePayload.rectCorner2Lng = parseFloat(editData.rectCorner2Lng);
+				updatePayload.rectCorner3Lat = parseFloat(editData.rectCorner3Lat);
+				updatePayload.rectCorner3Lng = parseFloat(editData.rectCorner3Lng);
+				updatePayload.rectCorner4Lat = parseFloat(editData.rectCorner4Lat);
+				updatePayload.rectCorner4Lng = parseFloat(editData.rectCorner4Lng);
+			}
+
 			const response = await fetch(`/api/parking-spots/${id}`, {
 				method: "PATCH",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({
-					address: editData.address,
-					description: editData.description || undefined,
-					pricePerHour: parseFloat(editData.pricePerHour),
-					isActive: editData.isActive,
-					imageUrl: editData.imageUrl || undefined,
-				}),
+				body: JSON.stringify(updatePayload),
 			});
 
 			if (!response.ok) {
@@ -110,6 +205,35 @@ export default function ParkingSpotDetailPage() {
 			setSaving(false);
 		}
 	};
+
+	const getCurrentLocation = () => {
+		if (!navigator.geolocation) {
+			setError("Geolokasjon støttes ikke av nettleseren");
+			return;
+		}
+
+		setGettingLocation(true);
+		navigator.geolocation.getCurrentPosition(
+			(position) => {
+				setEditData({
+					...editData,
+					latitude: position.coords.latitude.toString(),
+					longitude: position.coords.longitude.toString(),
+				});
+				setGettingLocation(false);
+			},
+			(error) => {
+				setError("Kunne ikke hente lokasjon: " + error.message);
+				setGettingLocation(false);
+			}
+		);
+	};
+
+	const handleVertexAdded = useCallback((lat: number, lng: number) => {
+		// Real-time update av koordinater når vertex legges til
+		// Dette er allerede håndtert av onPolygonDrawn, men vi kan bruke dette for logging
+		console.log("Vertex added:", lat, lng);
+	}, []);
 
 	const handleDelete = async () => {
 		if (!confirm("Er du sikker på at du vil slette denne parkeringsplassen?")) {
@@ -259,7 +383,7 @@ export default function ParkingSpotDetailPage() {
 											onChange={(e) =>
 												setEditData({ ...editData, address: e.target.value })
 											}
-											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
 										/>
 									</div>
 
@@ -281,7 +405,7 @@ export default function ParkingSpotDetailPage() {
 													pricePerHour: e.target.value,
 												})
 											}
-											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
 										/>
 									</div>
 
@@ -302,7 +426,7 @@ export default function ParkingSpotDetailPage() {
 													description: e.target.value,
 												})
 											}
-											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
 										/>
 									</div>
 
@@ -466,6 +590,121 @@ export default function ParkingSpotDetailPage() {
 										</div>
 									</div>
 
+									<div className="space-y-4">
+										<div>
+											<label className="block text-sm font-medium text-gray-700 mb-2">
+												Rediger parkeringsplass på kartet *
+											</label>
+											<p className="text-sm text-gray-600 mb-2">
+												Klikk på "Start tegning" knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
+												Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
+											</p>
+											{parkingSpot.type === "UTENDORS" && (
+												<button
+													type="button"
+													onClick={getCurrentLocation}
+													disabled={gettingLocation}
+													className="mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+												>
+													{gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
+												</button>
+											)}
+										</div>
+										<div className="h-96 border border-gray-300 rounded-lg overflow-hidden">
+											<ParkingSpotDrawMap
+												center={
+													editData.latitude && editData.longitude
+														? {
+																lat: parseFloat(editData.latitude),
+																lng: parseFloat(editData.longitude),
+															}
+														: parkingSpot.latitude && parkingSpot.longitude
+															? {
+																	lat: parkingSpot.latitude,
+																	lng: parkingSpot.longitude,
+																}
+															: undefined
+												}
+												onPolygonDrawn={(corners) => {
+													setEditData((prevData) => ({
+														...prevData,
+														latitude: corners.centerLat.toString(),
+														longitude: corners.centerLng.toString(),
+														rectCorner1Lat: corners.rectCorner1Lat.toString(),
+														rectCorner1Lng: corners.rectCorner1Lng.toString(),
+														rectCorner2Lat: corners.rectCorner2Lat.toString(),
+														rectCorner2Lng: corners.rectCorner2Lng.toString(),
+														rectCorner3Lat: corners.rectCorner3Lat.toString(),
+														rectCorner3Lng: corners.rectCorner3Lng.toString(),
+														rectCorner4Lat: corners.rectCorner4Lat.toString(),
+														rectCorner4Lng: corners.rectCorner4Lng.toString(),
+													}));
+												}}
+												onVertexAdded={handleVertexAdded}
+												initialPolygon={
+													editData.rectCorner1Lat &&
+													editData.rectCorner1Lng &&
+													editData.rectCorner2Lat &&
+													editData.rectCorner2Lng &&
+													editData.rectCorner3Lat &&
+													editData.rectCorner3Lng &&
+													editData.rectCorner4Lat &&
+													editData.rectCorner4Lng
+														? {
+																rectCorner1Lat: parseFloat(editData.rectCorner1Lat),
+																rectCorner1Lng: parseFloat(editData.rectCorner1Lng),
+																rectCorner2Lat: parseFloat(editData.rectCorner2Lat),
+																rectCorner2Lng: parseFloat(editData.rectCorner2Lng),
+																rectCorner3Lat: parseFloat(editData.rectCorner3Lat),
+																rectCorner3Lng: parseFloat(editData.rectCorner3Lng),
+																rectCorner4Lat: parseFloat(editData.rectCorner4Lat),
+																rectCorner4Lng: parseFloat(editData.rectCorner4Lng),
+															}
+														: parkingSpot.rectCorner1Lat &&
+																parkingSpot.rectCorner1Lng &&
+																parkingSpot.rectCorner2Lat &&
+																parkingSpot.rectCorner2Lng &&
+																parkingSpot.rectCorner3Lat &&
+																parkingSpot.rectCorner3Lng &&
+																parkingSpot.rectCorner4Lat &&
+																parkingSpot.rectCorner4Lng
+															? {
+																	rectCorner1Lat: parkingSpot.rectCorner1Lat,
+																	rectCorner1Lng: parkingSpot.rectCorner1Lng,
+																	rectCorner2Lat: parkingSpot.rectCorner2Lat,
+																	rectCorner2Lng: parkingSpot.rectCorner2Lng,
+																	rectCorner3Lat: parkingSpot.rectCorner3Lat,
+																	rectCorner3Lng: parkingSpot.rectCorner3Lng,
+																	rectCorner4Lat: parkingSpot.rectCorner4Lat,
+																	rectCorner4Lng: parkingSpot.rectCorner4Lng,
+																}
+															: null
+												}
+												polygonFromInput={
+													editData.rectCorner1Lat &&
+													editData.rectCorner1Lng &&
+													editData.rectCorner2Lat &&
+													editData.rectCorner2Lng &&
+													editData.rectCorner3Lat &&
+													editData.rectCorner3Lng &&
+													editData.rectCorner4Lat &&
+													editData.rectCorner4Lng
+														? {
+																rectCorner1Lat: parseFloat(editData.rectCorner1Lat),
+																rectCorner1Lng: parseFloat(editData.rectCorner1Lng),
+																rectCorner2Lat: parseFloat(editData.rectCorner2Lat),
+																rectCorner2Lng: parseFloat(editData.rectCorner2Lng),
+																rectCorner3Lat: parseFloat(editData.rectCorner3Lat),
+																rectCorner3Lng: parseFloat(editData.rectCorner3Lng),
+																rectCorner4Lat: parseFloat(editData.rectCorner4Lat),
+																rectCorner4Lng: parseFloat(editData.rectCorner4Lng),
+															}
+														: null
+												}
+											/>
+										</div>
+									</div>
+
 									<div className="flex items-center">
 										<input
 											type="checkbox"
@@ -497,13 +736,25 @@ export default function ParkingSpotDetailPage() {
 											type="button"
 											onClick={() => {
 												setIsEditing(false);
-												setEditData({
-													address: parkingSpot.address,
-													description: parkingSpot.description || "",
-													pricePerHour: parkingSpot.pricePerHour.toString(),
-													isActive: parkingSpot.isActive,
-													imageUrl: parkingSpot.imageUrl || "",
-												});
+												if (parkingSpot) {
+													setEditData({
+														address: parkingSpot.address,
+														description: parkingSpot.description || "",
+														pricePerHour: parkingSpot.pricePerHour.toString(),
+														isActive: parkingSpot.isActive,
+														imageUrl: parkingSpot.imageUrl || "",
+														latitude: parkingSpot.latitude?.toString() || "",
+														longitude: parkingSpot.longitude?.toString() || "",
+														rectCorner1Lat: parkingSpot.rectCorner1Lat?.toString() || "",
+														rectCorner1Lng: parkingSpot.rectCorner1Lng?.toString() || "",
+														rectCorner2Lat: parkingSpot.rectCorner2Lat?.toString() || "",
+														rectCorner2Lng: parkingSpot.rectCorner2Lng?.toString() || "",
+														rectCorner3Lat: parkingSpot.rectCorner3Lat?.toString() || "",
+														rectCorner3Lng: parkingSpot.rectCorner3Lng?.toString() || "",
+														rectCorner4Lat: parkingSpot.rectCorner4Lat?.toString() || "",
+														rectCorner4Lng: parkingSpot.rectCorner4Lng?.toString() || "",
+													});
+												}
 											}}
 											className="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300"
 										>

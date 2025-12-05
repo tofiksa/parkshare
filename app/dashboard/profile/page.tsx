@@ -231,7 +231,7 @@ export default function ProfilePage() {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                       />
                     </div>
                     <div>
@@ -243,7 +243,7 @@ export default function ProfilePage() {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                         placeholder="+47 123 45 678"
                       />
                     </div>
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                         type="email"
                         value={profile.email}
                         disabled
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100 text-gray-900"
                       />
                       <p className="text-xs text-gray-600 mt-1">E-post kan ikke endres</p>
                     </div>
@@ -267,7 +267,7 @@ export default function ProfilePage() {
                         type="text"
                         value={profile.userType === "UTLEIER" ? "Utleier" : "Leietaker"}
                         disabled
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 bg-gray-100 text-gray-900"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -358,7 +358,7 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           setPasswordData({ ...passwordData, currentPassword: e.target.value })
                         }
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                       />
                     </div>
                     <div>
@@ -373,7 +373,7 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           setPasswordData({ ...passwordData, newPassword: e.target.value })
                         }
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                         placeholder="Minst 8 tegn"
                       />
                     </div>
@@ -389,7 +389,7 @@ export default function ProfilePage() {
                         onChange={(e) =>
                           setPasswordData({ ...passwordData, confirmPassword: e.target.value })
                         }
-                        className="w-full rounded-md border border-gray-300 px-3 py-2"
+                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                         placeholder="••••••••"
                       />
                     </div>

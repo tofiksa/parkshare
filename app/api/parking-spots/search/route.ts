@@ -53,6 +53,7 @@ export async function GET(request: Request) {
     let parkingSpots = await prisma.parkingSpot.findMany({
       where: {
         isActive: true,
+        supportsAdvanceBooking: true, // Kun plasser som støtter forhåndsbooking
         ...(validatedQuery.type && { type: validatedQuery.type }),
         ...(validatedQuery.maxPrice && { pricePerHour: { lte: validatedQuery.maxPrice } }),
       },

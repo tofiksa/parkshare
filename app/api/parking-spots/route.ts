@@ -141,7 +141,20 @@ export async function POST(request: Request) {
       rectWestLng = Math.min(...lngs)
     }
 
-    // Opprett parkeringsplass
+    // Generer unikt zoneNumber basert på timestamp og random tall
+    // Format: YYYYMMDDHHMMSS + 3 random siffer (f.eks. "20241122143052123")
+    const now = new Date()
+    const timestamp = now.toISOString().replace(/[-:T.]/g, '').slice(0, 14) // YYYYMMDDHHMMSS
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0')
+    const zoneNumber = `${timestamp}${random}`
+
+    // Generer zoneName basert på adresse (første del av adressen)
+    const zoneName = validatedData.address.split(',')[0].trim()
+
+    // Sett operator til standard verdi
+    const operator = "Parkshare"
+
+    // Opprett parkeringsplass først (vi trenger ID for å generere bilde)
     const parkingSpot = await prisma.parkingSpot.create({
       data: {
         userId: session.user.id,
@@ -149,7 +162,7 @@ export async function POST(request: Request) {
         address: validatedData.address,
         latitude: validatedData.latitude,
         longitude: validatedData.longitude,
-        imageUrl: validatedData.imageUrl,
+        imageUrl: validatedData.imageUrl || null,
         description: validatedData.description,
         pricePerHour: validatedData.pricePerHour,
         qrCode: qrCode,
@@ -167,10 +180,58 @@ export async function POST(request: Request) {
         rectSouthLat,
         rectEastLng,
         rectWestLng,
+        // Sikre at parkeringsplassen er aktiv og støtter begge booking-typer
+        isActive: true,
+        supportsAdvanceBooking: true,
+        supportsOnDemandBooking: true, // Støtt også ON_DEMAND booking
+        // Zone-informasjon
+        zoneNumber,
+        zoneName,
+        operator,
       },
     })
 
-    return NextResponse.json(parkingSpot, { status: 201 })
+    // Hvis ingen bilde er oppgitt, generer kartbilde etter opprettelse
+    let finalParkingSpot = parkingSpot
+    if (!parkingSpot.imageUrl && parkingSpot.latitude && parkingSpot.longitude) {
+      try {
+        const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000"
+        const generateResponse = await fetch(`${baseUrl}/api/parking-spots/generate-map-image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: request.headers.get("cookie") || "",
+          },
+          body: JSON.stringify({
+            parkingSpotId: parkingSpot.id,
+            latitude: parkingSpot.latitude,
+            longitude: parkingSpot.longitude,
+            rectCorner1Lat: parkingSpot.rectCorner1Lat,
+            rectCorner1Lng: parkingSpot.rectCorner1Lng,
+            rectCorner2Lat: parkingSpot.rectCorner2Lat,
+            rectCorner2Lng: parkingSpot.rectCorner2Lng,
+            rectCorner3Lat: parkingSpot.rectCorner3Lat,
+            rectCorner3Lng: parkingSpot.rectCorner3Lng,
+            rectCorner4Lat: parkingSpot.rectCorner4Lat,
+            rectCorner4Lng: parkingSpot.rectCorner4Lng,
+          }),
+        })
+
+        if (generateResponse.ok) {
+          const imageData = await generateResponse.json()
+          // Oppdater parkeringsplassen med generert bilde
+          finalParkingSpot = await prisma.parkingSpot.update({
+            where: { id: parkingSpot.id },
+            data: { imageUrl: imageData.url },
+          })
+        }
+      } catch (error) {
+        console.error("Error generating map image:", error)
+        // Fortsett uten bilde hvis generering feiler
+      }
+    }
+
+    return NextResponse.json(finalParkingSpot, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

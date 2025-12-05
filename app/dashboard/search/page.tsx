@@ -305,7 +305,7 @@ export default function SearchPage() {
                   type="number"
                   value={filters.maxPrice}
                   onChange={(e) => handleFilterChange("maxPrice", e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                   placeholder="F.eks. 50"
                 />
               </div>
@@ -316,7 +316,7 @@ export default function SearchPage() {
                 <select
                   value={filters.type}
                   onChange={(e) => handleFilterChange("type", e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                 >
                   <option value="">Alle typer</option>
                   <option value="UTENDORS">Utendørs</option>
@@ -331,7 +331,7 @@ export default function SearchPage() {
                   type="number"
                   value={filters.maxDistance}
                   onChange={(e) => handleFilterChange("maxDistance", e.target.value)}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900"
                   min="1"
                   max="50"
                 />

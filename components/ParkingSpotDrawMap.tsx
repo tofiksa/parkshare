@@ -100,6 +100,10 @@ export default function ParkingSpotDrawMap({
       mapRef.current.addLayer(editableLayers)
 
       // Custom map click handler for polygon drawing will be set up in separate useEffect
+    } else if (center && mapRef.current) {
+      // Update map center when center prop changes
+      const newCenter: [number, number] = [center.lat, center.lng]
+      mapRef.current.setView(newCenter, 18, { animate: true, duration: 0.5 })
     }
 
     // Load initial polygon if provided
