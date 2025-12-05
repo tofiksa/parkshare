@@ -68,3 +68,33 @@ html {
   box-shadow: none !important;
 }
 
+/* PWA Install Prompt Animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* Ensure Leaflet map container doesn't lose tiles when cursor changes */
+.leaflet-container {
+  cursor: default !important;
+}
+
+.leaflet-container.cursor-crosshair {
+  cursor: crosshair !important;
+}
+
+/* Prevent map tiles from disappearing */
+.leaflet-container .leaflet-tile-container {
+  pointer-events: auto !important;
+}
+

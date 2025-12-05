@@ -54,7 +54,10 @@ export default function Map({
   const markersMapRef = useRef<{ [key: string]: L.Marker }>({}) // Objekt for å holde markører per ID
   const rectanglesRef = useRef<(L.Rectangle | L.Polygon)[]>([])
   const rectanglesMapRef = useRef<{ [key: string]: L.Rectangle | L.Polygon }>({}) // Objekt for å holde rektangler per ID
+  const userMarkerRef = useRef<L.Marker | null>(null) // Ref for brukerens lokasjonsmarkør
   const zoomLevelRef = useRef<number>(15)
+  const hasUserMovedMapRef = useRef(false) // Track om brukeren har flyttet kartet manuelt
+  const hasSetInitialViewRef = useRef(false) // Track om vi har satt initial view
   const [renderKey, setRenderKey] = useState(0)
 
   useEffect(() => {
@@ -77,6 +80,15 @@ export default function Map({
     }
 
     const map = mapRef.current
+
+    // Oppdater kartets senter til brukerens posisjon KUN ved første innlasting
+    // Ikke flytt kartet hvis brukeren har flyttet det manuelt
+    if (userLocation && mapRef.current && !hasUserMovedMapRef.current && !hasSetInitialViewRef.current) {
+      const newCenter: [number, number] = [userLocation.lat, userLocation.lng]
+      console.log("📍 Setting initial map view to user location:", newCenter)
+      map.setView(newCenter, 15, { animate: true, duration: 1.5 }) // Animasjon ved første innlasting
+      hasSetInitialViewRef.current = true
+    }
 
     // Oppdater zoom-nivå - hent alltid fra kartet for å sikre korrekt verdi
     const currentZoom = map.getZoom()
@@ -128,8 +140,18 @@ export default function Map({
     markersRef.current = Object.values(markersMapRef.current)
     rectanglesRef.current = Object.values(rectanglesMapRef.current)
 
-    // Add user location marker
+    // Add or update user location marker
     if (userLocation) {
+      // Fjern eksisterende user marker hvis den finnes
+      if (userMarkerRef.current) {
+        map.removeLayer(userMarkerRef.current)
+        // Fjern også fra markersRef hvis den er der
+        const index = markersRef.current.indexOf(userMarkerRef.current)
+        if (index > -1) {
+          markersRef.current.splice(index, 1)
+        }
+      }
+
       const userIcon = L.divIcon({
         className: "user-location-marker",
         html: '<div style="width: 20px; height: 20px; border-radius: 50%; background: #3b82f6; border: 3px solid white; box-shadow: none !important;"></div>',
@@ -143,7 +165,17 @@ export default function Map({
       })
         .addTo(map)
         .bindPopup("Din lokasjon")
+      
+      userMarkerRef.current = userMarker
       markersRef.current.push(userMarker)
+    } else if (userMarkerRef.current) {
+      // Fjern user marker hvis userLocation er null
+      map.removeLayer(userMarkerRef.current)
+      const index = markersRef.current.indexOf(userMarkerRef.current)
+      if (index > -1) {
+        markersRef.current.splice(index, 1)
+      }
+      userMarkerRef.current = null
     }
 
     // Bestem om vi skal vise rektangler eller markører basert på zoom-nivå
@@ -636,17 +668,27 @@ export default function Map({
     const handleZoomStart = () => {
       const newZoom = map.getZoom()
       zoomLevelRef.current = newZoom
+      // Track at brukeren har flyttet kartet manuelt
+      hasUserMovedMapRef.current = true
+    }
+
+    // Track når brukeren flytter kartet manuelt
+    const handleDragStart = () => {
+      hasUserMovedMapRef.current = true
+      console.log("👆 User started moving map manually")
     }
 
     map.on("moveend", updateBounds)
     map.on("zoomstart", handleZoomStart)
     map.on("zoomend", handleZoomChange)
+    map.on("dragstart", handleDragStart) // Track når brukeren begynner å dra kartet
 
     // Cleanup
     return () => {
       map.off("moveend", updateBounds)
       map.off("zoomstart", handleZoomStart)
       map.off("zoomend", handleZoomChange)
+      map.off("dragstart", handleDragStart)
     }
   }, [parkingSpots, userLocation, onMarkerClick, onBoundsChange, renderKey, selectedSpotId])
 

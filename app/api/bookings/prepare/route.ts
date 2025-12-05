@@ -12,6 +12,7 @@ const prepareBookingSchema = z.object({
   vehiclePlate: z.string().min(1),
   latitude: z.number(),
   longitude: z.number(),
+  requireGpsVerification: z.boolean().optional().default(false), // Valgfri GPS-verifisering
 })
 
 export async function POST(request: Request) {
@@ -44,16 +45,23 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verifiser GPS - DEAKTIVERT FOR TESTING
-    // La alltid gpsVerified være true for testing
-    let gpsVerified = true
-    // if (parkingSpot.latitude && parkingSpot.longitude) {
-    //   gpsVerified = isWithinTolerance(
-    //     { latitude: validatedData.latitude, longitude: validatedData.longitude },
-    //     { latitude: parkingSpot.latitude, longitude: parkingSpot.longitude },
-    //     parkingSpot.gpsToleranceMeters || 50
-    //   )
-    // }
+    // Verifiser GPS kun hvis kunden har aktivert det
+    let gpsVerified = false
+    if (validatedData.requireGpsVerification) {
+      if (parkingSpot.latitude && parkingSpot.longitude) {
+        gpsVerified = isWithinTolerance(
+          { latitude: validatedData.latitude, longitude: validatedData.longitude },
+          { latitude: parkingSpot.latitude, longitude: parkingSpot.longitude },
+          parkingSpot.gpsToleranceMeters || 50
+        )
+      } else {
+        // Hvis parkeringsplassen ikke har GPS-koordinater, kan vi ikke verifisere
+        gpsVerified = false
+      }
+    } else {
+      // Hvis GPS-verifisering ikke er aktivert, sett gpsVerified til true (ikke relevant)
+      gpsVerified = true
+    }
 
     // Sjekk at plassen er tilgjengelig
     const conflictingBooking = await prisma.booking.findFirst({
@@ -67,7 +75,13 @@ export async function POST(request: Request) {
     const isAvailable = !conflictingBooking
 
     // Beregn pricePerMinute hvis ikke satt
-    const pricePerMinute = parkingSpot.pricePerMinute || parkingSpot.pricePerHour / 60
+    const pricePerMinute = parkingSpot.pricePerMinute || 
+      (parkingSpot.pricePerHour ? parkingSpot.pricePerHour / 60 : 0)
+
+    // canStart er true hvis:
+    // 1. Plassen er tilgjengelig, OG
+    // 2. Hvis GPS-verifisering er aktivert, må GPS være verifisert
+    const canStart = isAvailable && (!validatedData.requireGpsVerification || gpsVerified)
 
     return NextResponse.json({
       parkingSpot: {
@@ -83,7 +97,7 @@ export async function POST(request: Request) {
       estimatedDuration: null, // For ON_DEMAND er dette null
       estimatedPrice: 0, // Starter på 0, beregnes etter stopp
       pricePerMinute,
-      canStart: isAvailable, // GPS-sjekk deaktivert for testing
+      canStart,
       gpsVerified,
       isAvailable,
     })

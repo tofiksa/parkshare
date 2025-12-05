@@ -135,15 +135,8 @@ export async function POST(request: Request) {
       qrCode = generateQRCodeString(validatedData.parkingSpotId)
     }
 
-    // Valider at avtalevilkår er godkjent
-    if (!validatedData.termsAccepted) {
-      return NextResponse.json(
-        { error: "Du må godkjenne avtalevilkårene" },
-        { status: 400 }
-      )
-    }
-
     // Opprett booking med terms acceptance
+    // termsAccepted er allerede validert av Zod schema
     // Valider at endTime og totalPrice er satt for ADVANCE
     if (!endTime || !totalPrice) {
       return NextResponse.json(

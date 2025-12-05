@@ -44,22 +44,46 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           email: user.email,
           name: user.name,
-          userType: user.userType,
+          userType: user.userType as "UTLEIER" | "LEIETAKER",
         }
       }
     })
   ],
   callbacks: {
     async jwt({ token, user }) {
+      // When user logs in, set userType from user object
       if (user) {
-        token.userType = user.userType
+        token.userType = user.userType as "UTLEIER" | "LEIETAKER"
+      }
+      // Ensure userType is preserved in token
+      // If userType is missing (shouldn't happen, but safety check), fetch from database
+      if (!token.userType && token.sub) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { userType: true }
+        })
+        if (dbUser) {
+          token.userType = dbUser.userType as "UTLEIER" | "LEIETAKER"
+        }
       }
       return token
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub!
-        session.user.userType = token.userType as "UTLEIER" | "LEIETAKER"
+        // Always set userType from token, with fallback to database if missing
+        if (token.userType && (token.userType === "UTLEIER" || token.userType === "LEIETAKER")) {
+          session.user.userType = token.userType
+        } else if (token.sub) {
+          // Fallback: fetch from database if token.userType is missing or invalid
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: { userType: true }
+          })
+          if (dbUser) {
+            session.user.userType = dbUser.userType
+          }
+        }
       }
       return session
     }

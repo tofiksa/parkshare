@@ -60,7 +60,7 @@ export async function POST(
     
     // Beregn pricePerMinute hvis ikke satt
     const pricePerMinute = booking.parkingSpot.pricePerMinute || 
-      (booking.parkingSpot.pricePerHour / 60)
+      (booking.parkingSpot.pricePerHour ? booking.parkingSpot.pricePerHour / 60 : 0)
     
     const totalPrice = calculatePriceByMinutes(pricePerMinute, startTime, now)
 

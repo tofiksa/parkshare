@@ -12,6 +12,7 @@ const startBookingSchema = z.object({
   vehiclePlate: z.string().min(1),
   latitude: z.number(),
   longitude: z.number(),
+  requireGpsVerification: z.boolean().optional().default(false), // Valgfri GPS-verifisering
 })
 
 export async function POST(request: Request) {
@@ -44,19 +45,27 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verifiser GPS - DEAKTIVERT FOR TESTING
-    // if (parkingSpot.latitude && parkingSpot.longitude) {
-    //   if (!isWithinTolerance(
-    //     { latitude: validatedData.latitude, longitude: validatedData.longitude },
-    //     { latitude: parkingSpot.latitude, longitude: parkingSpot.longitude },
-    //     parkingSpot.gpsToleranceMeters || 50
-    //   )) {
-    //     return NextResponse.json(
-    //       { error: "Du er ikke nær nok parkeringsplassen" },
-    //       { status: 400 }
-    //     )
-    //   }
-    // }
+    // Verifiser GPS kun hvis kunden har aktivert det
+    if (validatedData.requireGpsVerification) {
+      if (parkingSpot.latitude && parkingSpot.longitude) {
+        if (!isWithinTolerance(
+          { latitude: validatedData.latitude, longitude: validatedData.longitude },
+          { latitude: parkingSpot.latitude, longitude: parkingSpot.longitude },
+          parkingSpot.gpsToleranceMeters || 50
+        )) {
+          return NextResponse.json(
+            { error: "Du er ikke nær nok parkeringsplassen" },
+            { status: 400 }
+          )
+        }
+      } else {
+        // Hvis parkeringsplassen ikke har GPS-koordinater, kan vi ikke verifisere
+        return NextResponse.json(
+          { error: "Parkeringsplassen har ikke GPS-koordinater for verifisering" },
+          { status: 400 }
+        )
+      }
+    }
 
     // Sjekk at plassen er tilgjengelig (leietakere kan ha flere aktive parkeringer)
     const conflictingBooking = await prisma.booking.findFirst({

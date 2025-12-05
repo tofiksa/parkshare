@@ -14,6 +14,15 @@ const createParkingSpotSchema = z.object({
   imageUrl: z.string().url().optional(),
   description: z.string().optional(),
   pricePerHour: z.number().positive("Pris må være positiv"),
+  // Polygon-koordinater (valgfritt, men påkrevd for UTENDORS)
+  rectCorner1Lat: z.number().optional(),
+  rectCorner1Lng: z.number().optional(),
+  rectCorner2Lat: z.number().optional(),
+  rectCorner2Lng: z.number().optional(),
+  rectCorner3Lat: z.number().optional(),
+  rectCorner3Lng: z.number().optional(),
+  rectCorner4Lat: z.number().optional(),
+  rectCorner4Lng: z.number().optional(),
 })
 
 export async function GET(request: Request) {
@@ -63,7 +72,24 @@ export async function POST(request: Request) {
     const body = await request.json()
     const validatedData = createParkingSpotSchema.parse(body)
 
-    // For utendørs plasser, krever vi GPS-koordinater
+    // Valider at alle polygon-koordinater er satt for alle typer
+    if (
+      !validatedData.rectCorner1Lat ||
+      !validatedData.rectCorner1Lng ||
+      !validatedData.rectCorner2Lat ||
+      !validatedData.rectCorner2Lng ||
+      !validatedData.rectCorner3Lat ||
+      !validatedData.rectCorner3Lng ||
+      !validatedData.rectCorner4Lat ||
+      !validatedData.rectCorner4Lng
+    ) {
+      return NextResponse.json(
+        { error: "Polygon-koordinater er påkrevd. Vennligst tegn parkeringsplassen på kartet." },
+        { status: 400 }
+      )
+    }
+
+    // For utendørs plasser, krever vi også GPS-koordinater
     if (validatedData.type === "UTENDORS") {
       if (!validatedData.latitude || !validatedData.longitude) {
         return NextResponse.json(
@@ -80,6 +106,41 @@ export async function POST(request: Request) {
       qrCode = qrCodeString
     }
 
+    // Beregn bounds fra polygon-koordinater hvis de er satt
+    let rectNorthLat: number | null = null
+    let rectSouthLat: number | null = null
+    let rectEastLng: number | null = null
+    let rectWestLng: number | null = null
+
+    if (
+      validatedData.rectCorner1Lat &&
+      validatedData.rectCorner1Lng &&
+      validatedData.rectCorner2Lat &&
+      validatedData.rectCorner2Lng &&
+      validatedData.rectCorner3Lat &&
+      validatedData.rectCorner3Lng &&
+      validatedData.rectCorner4Lat &&
+      validatedData.rectCorner4Lng
+    ) {
+      const lats = [
+        validatedData.rectCorner1Lat,
+        validatedData.rectCorner2Lat,
+        validatedData.rectCorner3Lat,
+        validatedData.rectCorner4Lat,
+      ]
+      const lngs = [
+        validatedData.rectCorner1Lng,
+        validatedData.rectCorner2Lng,
+        validatedData.rectCorner3Lng,
+        validatedData.rectCorner4Lng,
+      ]
+
+      rectNorthLat = Math.max(...lats)
+      rectSouthLat = Math.min(...lats)
+      rectEastLng = Math.max(...lngs)
+      rectWestLng = Math.min(...lngs)
+    }
+
     // Opprett parkeringsplass
     const parkingSpot = await prisma.parkingSpot.create({
       data: {
@@ -92,6 +153,20 @@ export async function POST(request: Request) {
         description: validatedData.description,
         pricePerHour: validatedData.pricePerHour,
         qrCode: qrCode,
+        // Polygon-koordinater
+        rectCorner1Lat: validatedData.rectCorner1Lat,
+        rectCorner1Lng: validatedData.rectCorner1Lng,
+        rectCorner2Lat: validatedData.rectCorner2Lat,
+        rectCorner2Lng: validatedData.rectCorner2Lng,
+        rectCorner3Lat: validatedData.rectCorner3Lat,
+        rectCorner3Lng: validatedData.rectCorner3Lng,
+        rectCorner4Lat: validatedData.rectCorner4Lat,
+        rectCorner4Lng: validatedData.rectCorner4Lng,
+        // Bounds (beregnet fra polygon)
+        rectNorthLat,
+        rectSouthLat,
+        rectEastLng,
+        rectWestLng,
       },
     })
 

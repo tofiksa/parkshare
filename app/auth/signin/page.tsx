@@ -47,8 +47,8 @@ function SignInPageContent() {
           setError("Ugyldig e-post eller passord")
         }
       } else {
-        router.push("/dashboard")
-        router.refresh()
+        // Force session refresh and redirect
+        window.location.href = "/dashboard"
       }
     } catch (err) {
       setError("Noe gikk galt. Prøv igjen.")
