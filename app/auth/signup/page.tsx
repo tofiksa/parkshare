@@ -119,7 +119,7 @@ export default function SignUpPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, userType: e.target.value as "UTLEIER" | "LEIETAKER" })
                     }
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 shadow-sm text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
                   >
                     <option value="LEIETAKER">Leietaker - Jeg trenger parkering</option>
                     <option value="UTLEIER">Utleier - Jeg vil leie ut parkering</option>

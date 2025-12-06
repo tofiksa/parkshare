@@ -653,26 +653,24 @@ export default function ParkingSpotDetailPage() {
 												Klikk på "Start tegning" knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
 												Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
 											</p>
-											{parkingSpot.type === "UTENDORS" && (
-												<div className="flex gap-2 mb-2">
-													<button
-														type="button"
-														onClick={getCurrentLocation}
-														disabled={gettingLocation}
-														className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-													>
-														{gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
-													</button>
-													<button
-														type="button"
-														onClick={getAddressLocation}
-														disabled={gettingAddressLocation || !editData.address || editData.address.trim() === ""}
-														className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-													>
-														{gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
-													</button>
-												</div>
-											)}
+											<div className="flex gap-2 mb-2">
+												<button
+													type="button"
+													onClick={getCurrentLocation}
+													disabled={gettingLocation}
+													className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+												>
+													{gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
+												</button>
+												<button
+													type="button"
+													onClick={getAddressLocation}
+													disabled={gettingAddressLocation || !editData.address || editData.address.trim() === ""}
+													className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+												>
+													{gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
+												</button>
+											</div>
 										</div>
 										<div className="h-96 border border-gray-300 rounded-lg overflow-hidden">
 											<ParkingSpotDrawMap

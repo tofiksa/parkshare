@@ -46,6 +46,19 @@ export default function NewParkingSpotPage() {
   const [loading, setLoading] = useState(false)
   const [gettingLocation, setGettingLocation] = useState(false)
   const [gettingAddressLocation, setGettingAddressLocation] = useState(false)
+  const [existingParkingSpots, setExistingParkingSpots] = useState<Array<{
+    id: string
+    address: string
+    type?: "UTENDORS" | "INNENDORS"
+    rectCorner1Lat?: number | null
+    rectCorner1Lng?: number | null
+    rectCorner2Lat?: number | null
+    rectCorner2Lng?: number | null
+    rectCorner3Lat?: number | null
+    rectCorner3Lng?: number | null
+    rectCorner4Lat?: number | null
+    rectCorner4Lng?: number | null
+  }>>([])
 
   // Callback for updating input fields when vertices are added
   const handleVertexAdded = useCallback((vertexIndex: number, lat: number, lng: number) => {
@@ -75,6 +88,37 @@ export default function NewParkingSpotPage() {
       return { ...prevData, ...updates }
     })
   }, [])
+
+  // Hent eksisterende parkeringsplasser når siden lastes
+  useEffect(() => {
+    if (session && session.user.userType === "UTLEIER") {
+      fetchExistingParkingSpots()
+    }
+  }, [session])
+
+  const fetchExistingParkingSpots = async () => {
+    try {
+      const response = await fetch("/api/parking-spots")
+      if (response.ok) {
+        const data = await response.json()
+        // Filtrer ut kun de som har polygon-koordinater
+        const spotsWithPolygons = data.filter((spot: any) =>
+          spot.rectCorner1Lat &&
+          spot.rectCorner1Lng &&
+          spot.rectCorner2Lat &&
+          spot.rectCorner2Lng &&
+          spot.rectCorner3Lat &&
+          spot.rectCorner3Lng &&
+          spot.rectCorner4Lat &&
+          spot.rectCorner4Lng
+        )
+        setExistingParkingSpots(spotsWithPolygons)
+      }
+    } catch (err) {
+      console.error("Error fetching existing parking spots:", err)
+      // Fail silently - not critical for functionality
+    }
+  }
 
   // Hent prisforslag når type endres
   useEffect(() => {
@@ -374,7 +418,7 @@ export default function NewParkingSpotPage() {
                     type: e.target.value as "UTENDORS" | "INNENDORS",
                   })
                 }
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               >
                 <option value="UTENDORS">Utendørs</option>
                 <option value="INNENDORS">Innendørs/Garasje</option>
@@ -414,26 +458,24 @@ export default function NewParkingSpotPage() {
                   Klikk på "Start tegning" knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
                   Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
                 </p>
-                {formData.type === "UTENDORS" && (
-                  <div className="flex gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={getCurrentLocation}
-                      disabled={gettingLocation}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                    >
-                      {gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={getAddressLocation}
-                      disabled={gettingAddressLocation || !formData.address || formData.address.trim() === ""}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                    >
-                      {gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
-                    </button>
-                  </div>
-                )}
+                <div className="flex gap-2 mb-2">
+                  <button
+                    type="button"
+                    onClick={getCurrentLocation}
+                    disabled={gettingLocation}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={getAddressLocation}
+                    disabled={gettingAddressLocation || !formData.address || formData.address.trim() === ""}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
+                  </button>
+                </div>
               </div>
               <ParkingSpotDrawMap
                 center={
@@ -444,6 +486,7 @@ export default function NewParkingSpotPage() {
                       }
                     : undefined
                 }
+                existingParkingSpots={existingParkingSpots}
                 onPolygonDrawn={(corners) => {
                   setFormData((prevData) => {
                     // Check if coordinates have actually changed to avoid unnecessary updates
