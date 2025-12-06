@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import AddressAutocomplete from "@/components/AddressAutocomplete";
 
 // Dynamisk import av kart-komponenten
 const ParkingSpotDrawMap = dynamic(() => import("@/components/ParkingSpotDrawMap"), {
@@ -420,14 +421,23 @@ export default function ParkingSpotDetailPage() {
 										>
 											Adresse *
 										</label>
-										<input
+										<AddressAutocomplete
 											id="edit-address"
-											type="text"
 											value={editData.address}
-											onChange={(e) =>
-												setEditData({ ...editData, address: e.target.value })
+											onChange={(address) =>
+												setEditData({ ...editData, address })
 											}
+											onSelect={(address, lat, lon) => {
+												setEditData({
+													...editData,
+													address,
+													latitude: lat,
+													longitude: lon,
+												})
+											}}
+											required
 											className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-blue-500"
+											placeholder="Gateadresse, postnummer, by"
 										/>
 									</div>
 
