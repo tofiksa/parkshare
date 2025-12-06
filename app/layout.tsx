@@ -61,12 +61,17 @@ function ServiceWorkerRegistration() {
         __html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js')
+              navigator.serviceWorker.register('/sw.js', { scope: '/' })
                 .then(function(registration) {
-                  console.log('ServiceWorker registration successful');
+                  console.log('ServiceWorker registration successful:', registration.scope);
+                  
+                  // Check for updates periodically
+                  registration.addEventListener('updatefound', function() {
+                    console.log('ServiceWorker update found');
+                  });
                 })
                 .catch(function(err) {
-                  console.log('ServiceWorker registration failed: ', err);
+                  console.error('ServiceWorker registration failed:', err);
                 });
             });
           }
