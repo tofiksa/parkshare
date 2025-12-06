@@ -68,6 +68,7 @@ export default function ParkingSpotDetailPage() {
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [uploadingImage, setUploadingImage] = useState(false);
 	const [gettingLocation, setGettingLocation] = useState(false);
+	const [gettingAddressLocation, setGettingAddressLocation] = useState(false);
 
 	useEffect(() => {
 		if (id) {
@@ -227,6 +228,49 @@ export default function ParkingSpotDetailPage() {
 				setGettingLocation(false);
 			}
 		);
+	};
+
+	const getAddressLocation = async () => {
+		if (!editData.address || editData.address.trim() === "") {
+			setError("Vennligst skriv inn en adresse først");
+			return;
+		}
+
+		setGettingAddressLocation(true);
+		setError("");
+
+		try {
+			// Use Nominatim (OpenStreetMap) for geocoding
+			const response = await fetch(
+				`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(editData.address)}&limit=1`,
+				{
+					headers: {
+						'User-Agent': 'Parkshare App'
+					}
+				}
+			);
+
+			if (!response.ok) {
+				throw new Error("Kunne ikke hente adresse");
+			}
+
+			const data = await response.json();
+
+			if (data && data.length > 0) {
+				const result = data[0];
+				setEditData({
+					...editData,
+					latitude: result.lat,
+					longitude: result.lon,
+				});
+			} else {
+				setError("Kunne ikke finne adressen. Prøv en mer spesifikk adresse.");
+			}
+		} catch (err) {
+			setError("Kunne ikke hente lokasjon for adressen: " + (err instanceof Error ? err.message : "Ukjent feil"));
+		} finally {
+			setGettingAddressLocation(false);
+		}
 	};
 
 	const handleVertexAdded = useCallback((lat: number, lng: number) => {
@@ -600,14 +644,24 @@ export default function ParkingSpotDetailPage() {
 												Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
 											</p>
 											{parkingSpot.type === "UTENDORS" && (
-												<button
-													type="button"
-													onClick={getCurrentLocation}
-													disabled={gettingLocation}
-													className="mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-												>
-													{gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
-												</button>
+												<div className="flex gap-2 mb-2">
+													<button
+														type="button"
+														onClick={getCurrentLocation}
+														disabled={gettingLocation}
+														className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+													>
+														{gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
+													</button>
+													<button
+														type="button"
+														onClick={getAddressLocation}
+														disabled={gettingAddressLocation || !editData.address || editData.address.trim() === ""}
+														className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+													>
+														{gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
+													</button>
+												</div>
 											)}
 										</div>
 										<div className="h-96 border border-gray-300 rounded-lg overflow-hidden">

@@ -44,6 +44,7 @@ export default function NewParkingSpotPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [gettingLocation, setGettingLocation] = useState(false)
+  const [gettingAddressLocation, setGettingAddressLocation] = useState(false)
 
   // Callback for updating input fields when vertices are added
   const handleVertexAdded = useCallback((vertexIndex: number, lat: number, lng: number) => {
@@ -128,6 +129,50 @@ export default function NewParkingSpotPage() {
         setGettingLocation(false)
       }
     )
+  }
+
+  const getAddressLocation = async () => {
+    if (!formData.address || formData.address.trim() === "") {
+      setError("Vennligst skriv inn en adresse først")
+      return
+    }
+
+    setGettingAddressLocation(true)
+    setError("")
+
+    try {
+      // Use Nominatim (OpenStreetMap) for geocoding
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(formData.address)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'Parkshare App'
+          }
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error("Kunne ikke hente adresse")
+      }
+
+      const data = await response.json()
+
+      if (data && data.length > 0) {
+        const result = data[0]
+        setFormData({
+          ...formData,
+          latitude: result.lat,
+          longitude: result.lon,
+        })
+        fetchSuggestedPrice()
+      } else {
+        setError("Kunne ikke finne adressen. Prøv en mer spesifikk adresse.")
+      }
+    } catch (err) {
+      setError("Kunne ikke hente lokasjon for adressen: " + (err instanceof Error ? err.message : "Ukjent feil"))
+    } finally {
+      setGettingAddressLocation(false)
+    }
   }
 
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -361,14 +406,24 @@ export default function NewParkingSpotPage() {
                   Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
                 </p>
                 {formData.type === "UTENDORS" && (
-                  <button
-                    type="button"
-                    onClick={getCurrentLocation}
-                    disabled={gettingLocation}
-                    className="mb-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
-                  </button>
+                  <div className="flex gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={getCurrentLocation}
+                      disabled={gettingLocation}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {gettingLocation ? "Henter lokasjon..." : "Senter kart på min lokasjon"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={getAddressLocation}
+                      disabled={gettingAddressLocation || !formData.address || formData.address.trim() === ""}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {gettingAddressLocation ? "Henter adresse..." : "Senter kart på adresse"}
+                    </button>
+                  </div>
                 )}
               </div>
               <ParkingSpotDrawMap
