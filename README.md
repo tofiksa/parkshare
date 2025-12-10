@@ -76,6 +76,15 @@ Se `.env.example` for nødvendige miljøvariabler.
 
 ### Valgfrie variabler
 
+- **NEXT_PUBLIC_SENTRY_DSN**: Sentry DSN for error monitoring
+  - Hent fra: https://sentry.io → Ditt prosjekt → Settings → Client Keys (DSN)
+  - Format: `https://xxxxx@xxxxx.ingest.sentry.io/xxxxx`
+  - Se `docs/SENTRY_SETUP_GUIDE.md` for detaljert setup
+- **SENTRY_ORG**: Sentry organisasjon (for source maps)
+- **SENTRY_PROJECT**: Sentry prosjektnavn (for source maps)
+- **UPSTASH_REDIS_REST_URL**: Upstash Redis URL for rate limiting
+  - Hent fra: https://upstash.com → Redis database
+- **UPSTASH_REDIS_REST_TOKEN**: Upstash Redis token for rate limiting
 - **RESEND_API_KEY**: API-nøkkel fra Resend.com for e-postnotifikasjoner
   - Hent fra: https://resend.com/api-keys
   - Brukes for bookingbekreftelser, avbestillinger, meldinger og påminnelser

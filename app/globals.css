@@ -98,3 +98,8 @@ html {
   pointer-events: auto !important;
 }
 
+/* Hide Next.js error overlay portal in production */
+nextjs-portal {
+  display: none;
+}
+

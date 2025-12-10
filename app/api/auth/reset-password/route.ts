@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -56,7 +57,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error resetting password:", error)
+    logger.error("Error resetting password", error)
     return NextResponse.json(
       { error: "Noe gikk galt. Prøv igjen senere." },
       { status: 500 }

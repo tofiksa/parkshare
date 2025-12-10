@@ -6,6 +6,8 @@ import { z } from "zod"
 import { calculateTotalPrice } from "@/lib/pricing"
 import { generateQRCodeString } from "@/lib/qrcode"
 import { sendEmail, getBookingConfirmationEmail } from "@/lib/email"
+import { rateLimit, getClientIP } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -43,11 +45,23 @@ export async function POST(request: Request) {
       )
     }
 
+    // Rate limiting: 10 bookings per 5 minutes per user
+    const rateLimitResult = await rateLimit(`booking:${session.user.id}`, 10, 300)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for booking creation", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange bookingforsøk. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
+    }
+
     const body = await request.json()
-    
-    // Debug logging
-    console.log("Booking create request body:", JSON.stringify(body, null, 2))
-    
     const validatedData = createBookingSchema.parse(body)
 
     const startTime = new Date(validatedData.startTime)
@@ -219,7 +233,7 @@ export async function POST(request: Request) {
           `,
         }),
       ]).catch((error) => {
-        console.error("Error sending booking confirmation emails:", error)
+        logger.error("Error sending booking confirmation emails", error, { bookingId: booking.id })
         // Ikke feil hvis e-post feiler - booking er fortsatt opprettet
       })
     }
@@ -233,7 +247,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error creating booking:", error)
+    logger.error("Error creating booking", error, { userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke opprette booking" },
       { status: 500 }

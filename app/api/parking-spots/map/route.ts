@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -72,7 +73,7 @@ export async function GET(request: Request) {
         },
       }) as Promise<any[]>)
     } catch (prismaError) {
-      console.error("Prisma error fetching parking spots:", prismaError)
+      logger.error("Prisma error fetching parking spots", prismaError)
       throw prismaError
     }
 
@@ -110,7 +111,7 @@ export async function GET(request: Request) {
         },
       })
     } catch (prismaError) {
-      console.error("Prisma error fetching active bookings:", prismaError)
+      logger.error("Prisma error fetching active bookings", prismaError)
       // Fortsett med tom liste hvis det feiler
       activeBookings = []
     }
@@ -137,7 +138,7 @@ export async function GET(request: Request) {
       .map((spot: any) => {
         // Sjekk at koordinatene er gyldige før beregning
         if (!spot.latitude || !spot.longitude) {
-          console.warn("Spot", spot.id, "missing coordinates in map function")
+          logger.warn("Spot missing coordinates in map function", { spotId: spot.id })
           return null
         }
         
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
           rectCorner4Lng: spot.rectCorner4Lng ?? null,
         }
         } catch (calcError) {
-          console.error("Error calculating distance for spot", spot.id, ":", calcError)
+          logger.error("Error calculating distance for spot", calcError, { spotId: spot.id })
           return null
         }
       })
@@ -197,24 +198,15 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error("=== ERROR IN /api/parking-spots/map ===")
-    console.error("Error type:", error?.constructor?.name)
-    
     if (error instanceof z.ZodError) {
-      console.error("Validation error in map search:", error.errors)
+      logger.error("Validation error in map search", error, { errors: error.errors })
       return NextResponse.json(
         { error: error.errors[0].message },
         { status: 400 }
       )
     }
 
-    console.error("Error fetching parking spots for map:", error)
-    if (error instanceof Error) {
-      console.error("Error message:", error.message)
-      console.error("Error stack:", error.stack)
-    } else {
-      console.error("Unknown error type:", error)
-    }
+    logger.error("Error fetching parking spots for map", error)
     
     return NextResponse.json(
       { 

@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { stripe, convertNokToOre } from "@/lib/stripe"
 import { z } from "zod"
+import { rateLimit, getClientIP } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -17,6 +19,22 @@ export async function POST(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 20 payment intents per 5 minutes per user
+    const rateLimitResult = await rateLimit(`payment-intent:${session.user.id}`, 20, 300)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for payment intent creation", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange betalingsforsøk. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     const body = await request.json()
@@ -128,7 +146,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error creating payment intent:", error)
+    logger.error("Error creating payment intent", error, { userId: session?.user?.id, bookingId: validatedData?.bookingId })
     return NextResponse.json(
       { error: "Kunne ikke opprette betaling" },
       { status: 500 }

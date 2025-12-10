@@ -12,7 +12,8 @@ interface ParkingSpot {
   zoneName: string | null
   address: string
   operator: string | null
-  pricePerMinute: number
+  pricePerMinute: number | null
+  pricePerHour: number | null
 }
 
 function ConfirmParkingPageContent() {
@@ -255,7 +256,11 @@ function ConfirmParkingPageContent() {
             <div className="bg-blue-50 rounded-lg p-4">
               <h2 className="text-sm font-medium text-gray-700 mb-2">Pris</h2>
               <p className="text-2xl font-bold text-blue-600">
-                {parkingSpot.pricePerMinute.toFixed(2)} NOK per minutt
+                {parkingSpot.pricePerMinute 
+                  ? `${parkingSpot.pricePerMinute.toFixed(2)} NOK per minutt`
+                  : parkingSpot.pricePerHour
+                  ? `${(parkingSpot.pricePerHour / 60).toFixed(2)} NOK per minutt`
+                  : "Pris ikke tilgjengelig"}
               </p>
               <p className="text-sm text-gray-600 mt-1">
                 Du betaler kun for faktisk parkeringstid

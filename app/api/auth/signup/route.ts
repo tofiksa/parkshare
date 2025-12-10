@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import crypto from "crypto"
 import { sendEmail } from "@/lib/email"
+import { rateLimit, getClientIP } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 const signupSchema = z.object({
   name: z.string().min(2, "Navn må være minst 2 tegn"),
@@ -15,6 +17,23 @@ const signupSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting: 5 signups per 15 minutes per IP
+    const clientIP = getClientIP(request)
+    const rateLimitResult = await rateLimit(`signup:${clientIP}`, 5, 900)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for signup", { ip: clientIP })
+      return NextResponse.json(
+        { error: "For mange registreringsforsøk. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
+    }
+
     const body = await request.json()
     const validatedData = signupSchema.parse(body)
 
@@ -113,7 +132,7 @@ Parkshare-teamet
       )
     }
 
-    console.error("Signup error:", error)
+    logger.error("Signup error", error, { email: body?.email })
     
     // I development, vis mer detaljer
     if (process.env.NODE_ENV === "development") {

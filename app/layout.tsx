@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import "@/sentry.client.config";
 
 export const metadata: Metadata = {
   title: "Parkshare - Utleie av private parkeringsplasser",

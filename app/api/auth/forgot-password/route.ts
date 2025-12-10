@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { sendEmail } from "@/lib/email"
 import crypto from "crypto"
+import { rateLimit, getClientIP } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -12,6 +14,23 @@ const forgotPasswordSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    // Rate limiting: 5 requests per 15 minutes per IP
+    const clientIP = getClientIP(request)
+    const rateLimitResult = await rateLimit(`forgot-password:${clientIP}`, 5, 900)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for forgot password", { ip: clientIP })
+      return NextResponse.json(
+        { error: "For mange forespørsler. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
+    }
+
     const body = await request.json()
     const validatedData = forgotPasswordSchema.parse(body)
 
@@ -108,7 +127,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error processing forgot password:", error)
+    logger.error("Error processing forgot password", error)
     return NextResponse.json(
       { error: "Noe gikk galt. Prøv igjen senere." },
       { status: 500 }

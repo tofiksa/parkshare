@@ -3,6 +3,7 @@ import { headers } from "next/headers"
 import { stripe } from "@/lib/stripe"
 import { prisma } from "@/lib/prisma"
 import Stripe from "stripe"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   }
 
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
-    console.error("STRIPE_WEBHOOK_SECRET is not set")
+    logger.error("STRIPE_WEBHOOK_SECRET is not set", new Error("Webhook secret not configured"))
     return NextResponse.json(
       { error: "Webhook secret not configured" },
       { status: 500 }
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
       process.env.STRIPE_WEBHOOK_SECRET
     )
   } catch (err) {
-    console.error("Webhook signature verification failed:", err)
+    logger.error("Webhook signature verification failed", err)
     return NextResponse.json(
       { error: "Webhook signature verification failed" },
       { status: 400 }
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
         const bookingId = paymentIntent.metadata?.bookingId
 
         if (!bookingId) {
-          console.error("No bookingId in payment intent metadata")
+          logger.error("No bookingId in payment intent metadata", new Error("Missing bookingId"), { paymentIntentId: paymentIntent.id })
           break
         }
 
@@ -91,21 +92,19 @@ export async function POST(request: Request) {
               status: "FAILED",
             },
           })
-          console.error(`Payment failed for booking ${bookingId}`)
+          logger.error("Payment failed for booking", new Error("Payment failed"), { bookingId, paymentIntentId: paymentIntent.id })
         }
         break
       }
 
       default:
         // Unhandled event type - log for debugging but don't fail
-        if (process.env.NODE_ENV === "development") {
-          console.info(`Unhandled Stripe event type: ${event.type}`)
-        }
+        logger.debug(`Unhandled Stripe event type: ${event.type}`, { eventType: event.type })
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error("Error processing webhook:", error)
+    logger.error("Error processing webhook", error, { eventType: event?.type })
     return NextResponse.json(
       { error: "Error processing webhook" },
       { status: 500 }

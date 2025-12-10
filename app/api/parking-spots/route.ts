@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { calculateSuggestedPrice } from "@/lib/pricing"
 import { generateQRCode, generateQRCodeString } from "@/lib/qrcode"
+import { logger } from "@/lib/logger"
 
 const createParkingSpotSchema = z.object({
   type: z.enum(["UTENDORS", "INNENDORS"]),
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(parkingSpots)
   } catch (error) {
-    console.error("Error fetching parking spots:", error)
+    logger.error("Error fetching parking spots", error)
     return NextResponse.json(
       { error: "Kunne ikke hente parkeringsplasser" },
       { status: 500 }
@@ -226,7 +227,7 @@ export async function POST(request: Request) {
           })
         }
       } catch (error) {
-        console.error("Error generating map image:", error)
+        logger.error("Error generating map image", error, { parkingSpotId: parkingSpot.id })
         // Fortsett uten bilde hvis generering feiler
       }
     }
@@ -240,7 +241,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error creating parking spot:", error)
+    logger.error("Error creating parking spot", error, { userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke opprette parkeringsplass" },
       { status: 500 }

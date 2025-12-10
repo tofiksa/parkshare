@@ -54,7 +54,7 @@ function SignInPageContent() {
       // Catch any unexpected errors
       const errorMessage = err instanceof Error ? err.message : "Noe gikk galt. Prøv igjen."
       setError(errorMessage)
-      console.error("Login error:", err)
+      // Error is already displayed to user via setError
     } finally {
       setLoading(false)
     }

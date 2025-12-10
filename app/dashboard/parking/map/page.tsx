@@ -44,7 +44,6 @@ interface ParkingSpot {
 }
 
 export default function ParkingMapPage() {
-  console.log("🟡 ParkingMapPage component rendered")
   
   const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
@@ -217,12 +216,7 @@ export default function ParkingMapPage() {
         return
       }
       
-      console.error("Error fetching parking spots:", err)
-      console.error("Error details:", {
-        name: err instanceof Error ? err.name : "Unknown",
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined,
-      })
+      // Error is handled and displayed to user via setError
       
       const errorMessage = err instanceof Error ? err.message : "Kunne ikke laste parkeringsplasser"
       setError(errorMessage)

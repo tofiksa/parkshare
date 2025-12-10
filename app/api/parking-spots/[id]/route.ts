@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 const updateParkingSpotSchema = z.object({
   address: z.string().min(5).optional(),
@@ -54,9 +55,17 @@ export async function GET(
       )
     }
 
-    return NextResponse.json(parkingSpot)
+    // Beregn pricePerMinute hvis ikke satt
+    const pricePerMinute = parkingSpot.pricePerMinute || 
+      (parkingSpot.pricePerHour ? parkingSpot.pricePerHour / 60 : null)
+
+    // Returner parking spot med beregnet pricePerMinute
+    return NextResponse.json({
+      ...parkingSpot,
+      pricePerMinute,
+    })
   } catch (error) {
-    console.error("Error fetching parking spot:", error)
+    logger.error("Error fetching parking spot", error, { parkingSpotId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke hente parkeringsplass" },
       { status: 500 }
@@ -179,7 +188,7 @@ export async function PATCH(
             }
           }
         } catch (error) {
-          console.error("Error generating map image:", error)
+          logger.error("Error generating map image", error, { parkingSpotId: params.id })
           // Fortsett uten bilde hvis generering feiler
         }
       }
@@ -198,7 +207,7 @@ export async function PATCH(
       )
     }
 
-    console.error("Error updating parking spot:", error)
+    logger.error("Error updating parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke oppdatere parkeringsplass" },
       { status: 500 }
@@ -259,7 +268,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Parkeringsplass slettet" })
   } catch (error) {
-    console.error("Error deleting parking spot:", error)
+    logger.error("Error deleting parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke slette parkeringsplass" },
       { status: 500 }
