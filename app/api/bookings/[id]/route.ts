@@ -72,7 +72,7 @@ export async function GET(
 
     return NextResponse.json(booking)
   } catch (error) {
-    logger.error("Error fetching booking", error, { bookingId: params.id, userId: session?.user?.id })
+    logger.error("Error fetching booking", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke hente booking" },
       { status: 500 }

@@ -70,7 +70,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(bookingsWithDetails)
   } catch (error) {
-    logger.error("Error fetching active bookings", error, { userId: session?.user?.id })
+    logger.error("Error fetching active bookings", error)
     return NextResponse.json(
       { error: "Kunne ikke hente aktive parkeringer" },
       { status: 500 }

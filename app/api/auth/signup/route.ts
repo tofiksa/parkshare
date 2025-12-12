@@ -159,7 +159,7 @@ Parkshare-teamet
       )
     }
 
-    logger.error("Signup error", error, { email: body?.email })
+    logger.error("Signup error", error)
     
     // I development, vis mer detaljer
     if (process.env.NODE_ENV === "development") {

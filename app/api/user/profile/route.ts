@@ -43,7 +43,7 @@ export async function GET() {
 
     return NextResponse.json(user)
   } catch (error) {
-    logger.error("Error fetching user profile", error, { userId: session?.user?.id })
+    logger.error("Error fetching user profile", error)
     return NextResponse.json(
       { error: "Kunne ikke hente brukerprofil" },
       { status: 500 }
@@ -89,7 +89,7 @@ export async function PATCH(request: Request) {
       )
     }
 
-    logger.error("Error updating user profile", error, { userId: session?.user?.id })
+    logger.error("Error updating user profile", error)
     return NextResponse.json(
       { error: "Kunne ikke oppdatere brukerprofil" },
       { status: 500 }

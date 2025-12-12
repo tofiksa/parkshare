@@ -73,13 +73,23 @@ class Logger {
       try {
         // Dynamic import to avoid issues if Sentry is not configured
         import("@sentry/nextjs").then((Sentry) => {
+          // Convert context to primitive types for Sentry
+          const tags: Record<string, string | number | boolean> = {}
+          const extra: Record<string, unknown> = { message }
+          
+          if (context) {
+            for (const [key, value] of Object.entries(context)) {
+              if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                tags[key] = value
+              }
+              extra[key] = value
+            }
+          }
+          
           Sentry.captureException(errorObj, {
             level: "error",
-            tags: context,
-            extra: {
-              message,
-              ...context,
-            },
+            tags,
+            extra,
           })
         }).catch(() => {
           // Sentry not available, ignore

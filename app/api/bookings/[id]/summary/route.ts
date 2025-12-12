@@ -90,7 +90,7 @@ export async function GET(
       } : null,
     })
   } catch (error) {
-    logger.error("Error fetching booking summary", error, { bookingId: params.id, userId: session?.user?.id })
+    logger.error("Error fetching booking summary", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke hente sammendrag" },
       { status: 500 }

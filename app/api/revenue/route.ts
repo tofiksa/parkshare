@@ -89,7 +89,7 @@ export async function GET(request: Request) {
       period,
     })
   } catch (error) {
-    logger.error("Error fetching revenue", error, { userId: session?.user?.id })
+    logger.error("Error fetching revenue", error)
     return NextResponse.json(
       { error: "Kunne ikke hente inntekter" },
       { status: 500 }

@@ -122,7 +122,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error starting parking", error, { userId: session?.user?.id })
+    logger.error("Error starting parking", error)
     return NextResponse.json(
       { error: "Kunne ikke starte parkering" },
       { status: 500 }

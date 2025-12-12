@@ -110,7 +110,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error preparing booking", error, { userId: session?.user?.id })
+    logger.error("Error preparing booking", error)
     return NextResponse.json(
       { error: "Kunne ikke forberede booking" },
       { status: 500 }

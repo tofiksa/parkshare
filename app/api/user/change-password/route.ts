@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error changing password", error, { userId: session?.user?.id })
+    logger.error("Error changing password", error)
     return NextResponse.json(
       { error: "Kunne ikke endre passord" },
       { status: 500 }

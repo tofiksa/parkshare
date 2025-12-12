@@ -208,7 +208,7 @@ export async function PATCH(
       )
     }
 
-    logger.error("Error updating parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
+    logger.error("Error updating parking spot", error, { parkingSpotId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke oppdatere parkeringsplass" },
       { status: 500 }
@@ -269,7 +269,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Parkeringsplass slettet" })
   } catch (error) {
-    logger.error("Error deleting parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
+    logger.error("Error deleting parking spot", error, { parkingSpotId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke slette parkeringsplass" },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -75,7 +76,7 @@ export async function POST(request: Request) {
       note: "For produksjon bør dette lastes opp til cloud storage (Cloudinary/S3)",
     })
   } catch (error) {
-    logger.error("Error uploading image", error, { userId: session?.user?.id })
+    logger.error("Error uploading image", error)
     return NextResponse.json(
       { error: "Kunne ikke laste opp bilde" },
       { status: 500 }

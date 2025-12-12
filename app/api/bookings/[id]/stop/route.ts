@@ -116,7 +116,7 @@ export async function POST(
       } : null,
     })
   } catch (error) {
-    logger.error("Error stopping parking", error, { bookingId: params.id, userId: session?.user?.id })
+    logger.error("Error stopping parking", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke stoppe parkering" },
       { status: 500 }

@@ -114,7 +114,7 @@ export async function GET(
 
     return NextResponse.json(messages)
   } catch (error) {
-    logger.error("Error fetching messages", error, { userId: session?.user?.id, bookingId: params.id })
+    logger.error("Error fetching messages", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke hente meldinger" },
       { status: 500 }
@@ -260,7 +260,7 @@ export async function POST(
       )
     }
 
-    logger.error("Error creating message", error, { userId: session?.user?.id, bookingId: params.id })
+    logger.error("Error creating message", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke sende melding" },
       { status: 500 }

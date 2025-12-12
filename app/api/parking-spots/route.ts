@@ -259,7 +259,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error creating parking spot", error, { userId: session?.user?.id })
+    logger.error("Error creating parking spot", error)
     return NextResponse.json(
       { error: "Kunne ikke opprette parkeringsplass" },
       { status: 500 }

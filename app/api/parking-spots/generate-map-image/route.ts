@@ -218,7 +218,7 @@ export async function POST(request: Request) {
     if (browser) {
       await browser.close()
     }
-    logger.error("Error generating map image", error, { parkingSpotId: params.id })
+    logger.error("Error generating map image", error)
     return NextResponse.json(
       { error: "Kunne ikke generere kartbilde" },
       { status: 500 }

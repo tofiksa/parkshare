@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ unreadCount })
   } catch (error) {
-    logger.error("Error fetching unread messages", error, { userId: session?.user?.id })
+    logger.error("Error fetching unread messages", error)
     return NextResponse.json(
       { error: "Kunne ikke hente uleste meldinger" },
       { status: 500 }
