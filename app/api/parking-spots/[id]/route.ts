@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { logger } from "@/lib/logger"
+import { sanitizeString } from "@/lib/sanitize"
 
 const updateParkingSpotSchema = z.object({
   address: z.string().min(5).optional(),

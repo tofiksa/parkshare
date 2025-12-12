@@ -6,6 +6,8 @@ import { z } from "zod"
 import { calculateSuggestedPrice } from "@/lib/pricing"
 import { generateQRCode, generateQRCodeString } from "@/lib/qrcode"
 import { logger } from "@/lib/logger"
+import { rateLimit } from "@/lib/rate-limit"
+import { sanitizeString } from "@/lib/sanitize"
 
 const createParkingSpotSchema = z.object({
   type: z.enum(["UTENDORS", "INNENDORS"]),
@@ -32,6 +34,22 @@ export async function GET(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 100 requests per minute per user
+    const rateLimitResult = await rateLimit(`parking-spots-get:${session.user.id}`, 100, 60)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for parking spots GET", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange forespørsler. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     // Hent alle parkeringsplasser for den innloggede brukeren

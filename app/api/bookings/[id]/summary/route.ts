@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -89,7 +90,7 @@ export async function GET(
       } : null,
     })
   } catch (error) {
-    console.error("Error fetching booking summary:", error)
+    logger.error("Error fetching booking summary", error, { bookingId: params.id, userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke hente sammendrag" },
       { status: 500 }

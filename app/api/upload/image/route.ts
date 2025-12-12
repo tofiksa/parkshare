@@ -75,7 +75,7 @@ export async function POST(request: Request) {
       note: "For produksjon bør dette lastes opp til cloud storage (Cloudinary/S3)",
     })
   } catch (error) {
-    console.error("Error uploading image:", error)
+    logger.error("Error uploading image", error, { userId: session?.user?.id })
     return NextResponse.json(
       { error: "Kunne ikke laste opp bilde" },
       { status: 500 }

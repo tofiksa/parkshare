@@ -137,7 +137,7 @@ export async function GET(request: Request) {
       )
     }
 
-    console.error("Error searching parking spots:", error)
+    logger.error("Error searching parking spots", error)
     return NextResponse.json(
       { error: "Kunne ikke søke etter parkeringsplasser" },
       { status: 500 }
