@@ -146,7 +146,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error creating payment intent", error, { userId: session?.user?.id, bookingId: validatedData?.bookingId })
+    logger.error("Error creating payment intent", error)
     return NextResponse.json(
       { error: "Kunne ikke opprette betaling" },
       { status: 500 }

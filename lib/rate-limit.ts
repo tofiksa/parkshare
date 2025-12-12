@@ -27,7 +27,7 @@ if (typeof globalThis !== "undefined") {
   }, 60000)
 }
 
-async function getUpstashRateLimit() {
+async function getUpstashRateLimit(limit: number, window: number) {
   try {
     const { Ratelimit } = await import("@upstash/ratelimit")
     const { Redis } = await import("@upstash/redis")
@@ -43,7 +43,7 @@ async function getUpstashRateLimit() {
 
     return new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow,
+      limiter: Ratelimit.slidingWindow(limit, `${window}s`),
     })
   } catch (error) {
     console.error("Failed to initialize Upstash rate limiter:", error)
@@ -65,13 +65,10 @@ export async function rateLimit(
   window: number
 ): Promise<RateLimitResult> {
   // Try to use Upstash Redis if available
-  const upstashRateLimit = await getUpstashRateLimit()
+  const upstashRateLimit = await getUpstashRateLimit(limit, window)
   
   if (upstashRateLimit) {
-    const result = await upstashRateLimit.limit(identifier, {
-      limit,
-      window: `${window}s`,
-    })
+    const result = await upstashRateLimit.limit(identifier)
     
     return {
       success: result.success,
