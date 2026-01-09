@@ -2,6 +2,8 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
+import { rateLimit } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -11,6 +13,22 @@ export async function GET(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 100 requests per minute per user
+    const rateLimitResult = await rateLimit(`bookings-get:${session.user.id}`, 100, 60)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for bookings GET", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange forespørsler. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     const { searchParams } = new URL(request.url)
@@ -81,7 +99,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(bookings)
   } catch (error) {
-    console.error("Error fetching bookings:", error)
+    logger.error("Error fetching bookings", error)
     return NextResponse.json(
       { error: "Kunne ikke hente bookinger" },
       { status: 500 }

@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { isWithinTolerance } from "@/lib/gps"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error starting parking:", error)
+    logger.error("Error starting parking", error)
     return NextResponse.json(
       { error: "Kunne ikke starte parkering" },
       { status: 500 }

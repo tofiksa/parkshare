@@ -4,11 +4,14 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { sendEmail, getNewMessageEmail } from "@/lib/email"
+import { rateLimit } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
+import { sanitizeMessageContent } from "@/lib/sanitize"
 
 export const dynamic = "force-dynamic"
 
 const createMessageSchema = z.object({
-  content: z.string().min(1, "Melding kan ikke være tom"),
+  content: z.string().min(1, "Melding kan ikke være tom").max(5000, "Melding kan ikke være lengre enn 5000 tegn"),
 })
 
 // GET - Hent alle meldinger for en booking
@@ -21,6 +24,22 @@ export async function GET(
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 60 requests per minute per user
+    const rateLimitResult = await rateLimit(`messages-get:${session.user.id}`, 60, 60)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for messages GET", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange forespørsler. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     const booking = await prisma.booking.findUnique({
@@ -95,7 +114,7 @@ export async function GET(
 
     return NextResponse.json(messages)
   } catch (error) {
-    console.error("Error fetching messages:", error)
+    logger.error("Error fetching messages", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke hente meldinger" },
       { status: 500 }
@@ -113,6 +132,22 @@ export async function POST(
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 20 messages per 5 minutes per user
+    const rateLimitResult = await rateLimit(`messages-post:${session.user.id}`, 20, 300)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for messages POST", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange meldinger. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     const booking = await prisma.booking.findUnique({
@@ -150,6 +185,9 @@ export async function POST(
     const body = await request.json()
     const validatedData = createMessageSchema.parse(body)
 
+    // Sanitize message content
+    const sanitizedContent = sanitizeMessageContent(validatedData.content)
+
     // Bestem mottaker (den andre parten i bookingen)
     const receiverId =
       session.user.userType === "LEIETAKER"
@@ -174,7 +212,7 @@ export async function POST(
         bookingId: params.id,
         senderId: session.user.id,
         receiverId: receiverId,
-        content: validatedData.content,
+        content: sanitizedContent,
       },
       include: {
         sender: {
@@ -205,10 +243,10 @@ export async function POST(
             address: bookingInfo.parkingSpot.address,
             bookingId: params.id,
           },
-          validatedData.content.substring(0, 100) // Preview av første 100 tegn
+          sanitizedContent.substring(0, 100) // Preview av første 100 tegn
         ),
       }).catch((error) => {
-        console.error("Error sending message notification email:", error)
+        logger.error("Error sending message notification email", error, { bookingId: params.id })
         // Ikke feil hvis e-post feiler - melding er fortsatt sendt
       })
     }
@@ -222,7 +260,7 @@ export async function POST(
       )
     }
 
-    console.error("Error creating message:", error)
+    logger.error("Error creating message", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke sende melding" },
       { status: 500 }

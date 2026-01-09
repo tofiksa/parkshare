@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -42,7 +43,7 @@ export async function GET() {
 
     return NextResponse.json(user)
   } catch (error) {
-    console.error("Error fetching user profile:", error)
+    logger.error("Error fetching user profile", error)
     return NextResponse.json(
       { error: "Kunne ikke hente brukerprofil" },
       { status: 500 }
@@ -88,7 +89,7 @@ export async function PATCH(request: Request) {
       )
     }
 
-    console.error("Error updating user profile:", error)
+    logger.error("Error updating user profile", error)
     return NextResponse.json(
       { error: "Kunne ikke oppdatere brukerprofil" },
       { status: 500 }
