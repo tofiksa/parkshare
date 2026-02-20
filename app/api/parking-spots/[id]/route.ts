@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import { logger } from "@/lib/logger"
+import { sanitizeString } from "@/lib/sanitize"
 
 const updateParkingSpotSchema = z.object({
   address: z.string().min(5).optional(),
@@ -207,7 +208,7 @@ export async function PATCH(
       )
     }
 
-    logger.error("Error updating parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
+    logger.error("Error updating parking spot", error, { parkingSpotId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke oppdatere parkeringsplass" },
       { status: 500 }
@@ -268,7 +269,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Parkeringsplass slettet" })
   } catch (error) {
-    logger.error("Error deleting parking spot", error, { parkingSpotId: params.id, userId: session?.user?.id })
+    logger.error("Error deleting parking spot", error, { parkingSpotId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke slette parkeringsplass" },
       { status: 500 }

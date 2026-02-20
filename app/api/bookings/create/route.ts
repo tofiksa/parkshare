@@ -247,7 +247,7 @@ export async function POST(request: Request) {
       )
     }
 
-    logger.error("Error creating booking", error, { userId: session?.user?.id })
+    logger.error("Error creating booking", error)
     return NextResponse.json(
       { error: "Kunne ikke opprette booking" },
       { status: 500 }

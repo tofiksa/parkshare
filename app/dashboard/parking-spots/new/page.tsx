@@ -455,7 +455,7 @@ export default function NewParkingSpotPage() {
                   Tegn parkeringsplass på kartet *
                 </label>
                 <p className="text-sm text-gray-600 mb-2">
-                  Klikk på "Start tegning" knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
+                  Klikk på &quot;Start tegning&quot; knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
                   Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
                 </p>
                 <div className="flex gap-2 mb-2">
@@ -566,10 +566,10 @@ export default function NewParkingSpotPage() {
               <div className="text-sm text-gray-600">
                 <p className="font-medium mb-1">Instruksjoner:</p>
                 <ul className="list-disc list-inside space-y-1">
-                  <li>Klikk på "Start tegning" knappen nederst til venstre på kartet</li>
+                  <li>Klikk på &quot;Start tegning&quot; knappen nederst til venstre på kartet</li>
                   <li>Klikk på kartet for å plassere de 4 hjørnepunktene (du kan også dra eksisterende punkter for å flytte dem)</li>
-                  <li>Klikk på "Fullfør" knappen når du har lagt til 4 punkter (knappen er deaktivert hvis linjene krysser hverandre)</li>
-                  <li>Du kan redigere polygonen ved å klikke "Rediger tegning" og deretter dra punktene til ønsket posisjon</li>
+                  <li>Klikk på &quot;Fullfør&quot; knappen når du har lagt til 4 punkter (knappen er deaktivert hvis linjene krysser hverandre)</li>
+                  <li>Du kan redigere polygonen ved å klikke &quot;Rediger tegning&quot; og deretter dra punktene til ønsket posisjon</li>
                   <li>Koordinatene fylles automatisk i inputfeltene nedenfor mens du tegner</li>
                 </ul>
               </div>

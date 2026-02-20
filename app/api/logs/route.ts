@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
       },
     })
   } catch (error) {
-    console.error("Error fetching logs:", error)
+    logger.error("Error fetching logs", error)
     return NextResponse.json(
       { error: "Kunne ikke hente logger" },
       { status: 500 }
@@ -65,12 +66,16 @@ export async function POST(request: Request) {
       )
     }
 
-    // Log til server console
+    // Log til server logger
     const logMessage = `[${level.toUpperCase()}] ${message}`
-    if (data) {
-      console.log(logMessage, data)
+    if (level === "error") {
+      logger.error(logMessage, undefined, data)
+    } else if (level === "warn") {
+      logger.warn(logMessage, data)
+    } else if (level === "info") {
+      logger.info(logMessage, data)
     } else {
-      console.log(logMessage)
+      logger.debug(logMessage, data)
     }
 
     return NextResponse.json({
@@ -78,7 +83,7 @@ export async function POST(request: Request) {
       message: "Log melding mottatt",
     })
   } catch (error) {
-    console.error("Error posting log:", error)
+    logger.error("Error posting log", error)
     return NextResponse.json(
       { error: "Kunne ikke sende log melding" },
       { status: 500 }

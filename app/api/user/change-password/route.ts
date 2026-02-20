@@ -4,12 +4,19 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
 import bcrypt from "bcryptjs"
+import { rateLimit } from "@/lib/rate-limit"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Nåværende passord er påkrevd"),
-  newPassword: z.string().min(8, "Nytt passord må være minst 8 tegn"),
+  newPassword: z.string()
+    .min(8, "Nytt passord må være minst 8 tegn")
+    .regex(/[A-Z]/, "Passord må inneholde minst én stor bokstav")
+    .regex(/[a-z]/, "Passord må inneholde minst én liten bokstav")
+    .regex(/[0-9]/, "Passord må inneholde minst ett tall")
+    .regex(/[^A-Za-z0-9]/, "Passord må inneholde minst ett spesialtegn"),
 })
 
 export async function POST(request: Request) {
@@ -18,6 +25,22 @@ export async function POST(request: Request) {
 
     if (!session) {
       return NextResponse.json({ error: "Ikke autentisert" }, { status: 401 })
+    }
+
+    // Rate limiting: 5 password changes per 15 minutes per user
+    const rateLimitResult = await rateLimit(`change-password:${session.user.id}`, 5, 900)
+    
+    if (!rateLimitResult.success) {
+      logger.warn("Rate limit exceeded for password change", { userId: session.user.id })
+      return NextResponse.json(
+        { error: "For mange passordendringsforsøk. Prøv igjen senere." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateLimitResult.reset - Date.now()) / 1000)),
+          },
+        }
+      )
     }
 
     const body = await request.json()
@@ -74,7 +97,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error changing password:", error)
+    logger.error("Error changing password", error)
     return NextResponse.json(
       { error: "Kunne ikke endre passord" },
       { status: 500 }

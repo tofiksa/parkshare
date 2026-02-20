@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { z } from "zod"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -137,7 +138,7 @@ export async function GET(request: Request) {
       )
     }
 
-    console.error("Error searching parking spots:", error)
+    logger.error("Error searching parking spots", error)
     return NextResponse.json(
       { error: "Kunne ikke søke etter parkeringsplasser" },
       { status: 500 }

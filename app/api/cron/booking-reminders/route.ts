@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail, getBookingReminderEmail } from "@/lib/email"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -67,7 +68,7 @@ export async function GET(request: Request) {
           }
           return { bookingId: booking.id, success: true }
         } catch (error) {
-          console.error(`Error sending reminder for booking ${booking.id}:`, error)
+          logger.error(`Error sending reminder for booking ${booking.id}`, error, { bookingId: booking.id })
           return { bookingId: booking.id, success: false, error: error instanceof Error ? error.message : "Ukjent feil" }
         }
       })
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
       failed,
     })
   } catch (error) {
-    console.error("Error processing booking reminders:", error)
+    logger.error("Error processing booking reminders", error)
     return NextResponse.json(
       { error: "Kunne ikke behandle påminnelser" },
       { status: 500 }

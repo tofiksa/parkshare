@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { calculateSuggestedPrice } from "@/lib/pricing"
+import { logger } from "@/lib/logger"
 
 const suggestPriceSchema = z.object({
   type: z.enum(["UTENDORS", "INNENDORS"]),
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
       )
     }
 
-    console.error("Error suggesting price:", error)
+    logger.error("Error suggesting price", error)
     return NextResponse.json(
       { error: "Kunne ikke foreslå pris" },
       { status: 500 }

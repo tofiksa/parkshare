@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { calculateEstimatedPrice } from "@/lib/pricing"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(bookingsWithDetails)
   } catch (error) {
-    console.error("Error fetching active bookings:", error)
+    logger.error("Error fetching active bookings", error)
     return NextResponse.json(
       { error: "Kunne ikke hente aktive parkeringer" },
       { status: 500 }

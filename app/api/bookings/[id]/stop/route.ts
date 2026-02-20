@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { calculatePriceByMinutes } from "@/lib/pricing"
 import { stripe, convertNokToOre } from "@/lib/stripe"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -115,7 +116,7 @@ export async function POST(
       } : null,
     })
   } catch (error) {
-    console.error("Error stopping parking:", error)
+    logger.error("Error stopping parking", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke stoppe parkering" },
       { status: 500 }

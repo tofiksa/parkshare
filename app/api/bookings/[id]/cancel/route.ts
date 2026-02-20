@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendEmail, getCancellationEmail } from "@/lib/email"
 import { stripe, convertNokToOre } from "@/lib/stripe"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -111,7 +112,7 @@ export async function POST(
           },
         })
       } catch (error) {
-        console.error("Error processing refund:", error)
+        logger.error("Error processing refund", error, { bookingId: params.id, userId: session.user.id })
         // Fortsett med avbestilling selv om refundering feiler
       }
     }
@@ -154,7 +155,7 @@ export async function POST(
         `,
       }),
     ]).catch((error) => {
-      console.error("Error sending cancellation emails:", error)
+      logger.error("Error sending cancellation emails", error, { bookingId: params.id })
       // Ikke feil hvis e-post feiler - booking er fortsatt avbestilt
     })
 
@@ -164,7 +165,7 @@ export async function POST(
       refunded: payment?.status === "COMPLETED",
     })
   } catch (error) {
-    console.error("Error cancelling booking:", error)
+    logger.error("Error cancelling booking", error, { bookingId: params.id })
     return NextResponse.json(
       { error: "Kunne ikke avbestille booking" },
       { status: 500 }

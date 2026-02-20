@@ -10,7 +10,12 @@ import { logger } from "@/lib/logger"
 const signupSchema = z.object({
   name: z.string().min(2, "Navn må være minst 2 tegn"),
   email: z.string().email("Ugyldig e-postadresse"),
-  password: z.string().min(8, "Passord må være minst 8 tegn"),
+  password: z.string()
+    .min(8, "Passord må være minst 8 tegn")
+    .regex(/[A-Z]/, "Passord må inneholde minst én stor bokstav")
+    .regex(/[a-z]/, "Passord må inneholde minst én liten bokstav")
+    .regex(/[0-9]/, "Passord må inneholde minst ett tall")
+    .regex(/[^A-Za-z0-9]/, "Passord må inneholde minst ett spesialtegn"),
   phone: z.string().optional(),
   userType: z.enum(["UTLEIER", "LEIETAKER"]),
 })
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
     // Send verification email
     const verificationUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/auth/verify-email?token=${verificationToken}`
     
-    await sendEmail({
+    const emailResult = await sendEmail({
       to: validatedData.email,
       subject: "Verifiser din e-postadresse - Parkshare",
       html: `
@@ -116,6 +121,28 @@ Parkshare-teamet
       `.trim(),
     })
 
+    // Log email sending result
+    if (!emailResult.success) {
+      logger.warn("Failed to send verification email", { 
+        email: validatedData.email, 
+        error: emailResult.error 
+      })
+      
+      // In development mode, include verification URL in response
+      if (process.env.NODE_ENV === "development") {
+        return NextResponse.json(
+          { 
+            message: "Bruker opprettet, men e-post kunne ikke sendes. Bruk lenken under for å verifisere kontoen din.", 
+            user,
+            requiresVerification: true,
+            verificationUrl: verificationUrl,
+            emailError: emailResult.error,
+          },
+          { status: 201 }
+        )
+      }
+    }
+
     return NextResponse.json(
       { 
         message: "Bruker opprettet. Sjekk din e-post for å verifisere kontoen din.", 
@@ -132,7 +159,7 @@ Parkshare-teamet
       )
     }
 
-    logger.error("Signup error", error, { email: body?.email })
+    logger.error("Signup error", error)
     
     // I development, vis mer detaljer
     if (process.env.NODE_ENV === "development") {

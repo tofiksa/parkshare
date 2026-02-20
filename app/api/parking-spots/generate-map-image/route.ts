@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import puppeteer from "puppeteer"
+import { logger } from "@/lib/logger"
 
 export const dynamic = "force-dynamic"
 
@@ -217,7 +218,7 @@ export async function POST(request: Request) {
     if (browser) {
       await browser.close()
     }
-    console.error("Error generating map image:", error)
+    logger.error("Error generating map image", error)
     return NextResponse.json(
       { error: "Kunne ikke generere kartbilde" },
       { status: 500 }

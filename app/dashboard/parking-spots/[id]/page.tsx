@@ -650,7 +650,7 @@ export default function ParkingSpotDetailPage() {
 												Rediger parkeringsplass på kartet *
 											</label>
 											<p className="text-sm text-gray-600 mb-2">
-												Klikk på "Start tegning" knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
+												Klikk på &quot;Start tegning&quot; knappen nederst til venstre på kartet og tegn en firkant som representerer parkeringsplassen. 
 												Du må tegne nøyaktig 4 hjørnepunkter. Du kan dra punktene for å justere posisjonen.
 											</p>
 											<div className="flex gap-2 mb-2">
